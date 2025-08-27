@@ -2,7 +2,12 @@
 package com.crediya.solicitudes.model.solicitud.exception;
 
 public class DatosSolicitudInvalidosException extends RuntimeException {
+
     public DatosSolicitudInvalidosException(String mensaje) {
         super(mensaje);
+    }
+
+    public DatosSolicitudInvalidosException(String mensaje, Throwable causa) {
+        super(mensaje, causa);
     }
 }

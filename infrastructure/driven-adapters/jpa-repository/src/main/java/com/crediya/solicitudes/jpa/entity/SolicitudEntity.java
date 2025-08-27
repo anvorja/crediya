@@ -71,7 +71,7 @@ public class SolicitudEntity {
 
     public enum EstadoSolicitudEntity {
         PENDIENTE_REVISION,
-        PRE_APROBADA,
+        EN_REVISION,
         APROBADA,
         RECHAZADA
     }

@@ -1,3 +1,4 @@
+// infrastructure/entry-points/reactive-web/src/main/java/com/crediya/solicitudes/api/exception/GlobalExceptionHandler.java
 package com.crediya.solicitudes.api.exception;
 
 import com.crediya.solicitudes.model.solicitud.exception.DatosSolicitudInvalidosException;

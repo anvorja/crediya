@@ -1,4 +1,4 @@
-// crediYa/microservicio-solicitudes/settings.gradle
+// microservicio-solicitudes/settings.gradle
 pluginManagement {
     repositories {
         //mavenLocal()

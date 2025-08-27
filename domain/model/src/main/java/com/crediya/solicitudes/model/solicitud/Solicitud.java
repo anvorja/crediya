@@ -1,10 +1,12 @@
-
 // domain/model/src/main/java/com/crediya/solicitudes/model/solicitud/Solicitud.java
 package com.crediya.solicitudes.model.solicitud;
 
+import com.crediya.solicitudes.model.constants.BusinessConstants;
 import com.crediya.solicitudes.model.solicitud.exception.DatosSolicitudInvalidosException;
 import com.crediya.solicitudes.model.solicitud.exception.TransicionEstadoInvalidaException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +27,7 @@ public class Solicitud {
     private String observaciones;
     private BigDecimal ingresosMensuales;
     private BigDecimal gastosMensuales;
+    private Integer plazoMeses; // AÑADIDO
 
     // Constructor por defecto
     public Solicitud() {
@@ -37,7 +40,8 @@ public class Solicitud {
     public Solicitud(String id, String numeroDocumento, String nombres, String apellidos,
                      String email, String telefono, BigDecimal montoSolicitado, String tipoCredito,
                      EstadoSolicitud estado, LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion,
-                     String observaciones, BigDecimal ingresosMensuales, BigDecimal gastosMensuales) {
+                     String observaciones, BigDecimal ingresosMensuales, BigDecimal gastosMensuales,
+                     Integer plazoMeses) {
         this.id = id;
         this.numeroDocumento = numeroDocumento;
         this.nombres = nombres;
@@ -52,6 +56,7 @@ public class Solicitud {
         this.observaciones = observaciones;
         this.ingresosMensuales = ingresosMensuales;
         this.gastosMensuales = gastosMensuales;
+        this.plazoMeses = plazoMeses;
     }
 
     // ============================================================
@@ -100,8 +105,12 @@ public class Solicitud {
     public BigDecimal getGastosMensuales() { return gastosMensuales; }
     public void setGastosMensuales(BigDecimal gastosMensuales) { this.gastosMensuales = gastosMensuales; }
 
+    // AÑADIDO - Getter y Setter para plazoMeses
+    public Integer getPlazoMeses() { return plazoMeses; }
+    public void setPlazoMeses(Integer plazoMeses) { this.plazoMeses = plazoMeses; }
+
     // ============================================================
-    // MÉTODOS DE NEGOCIO (Domain Logic) - SIN DEPENDENCIAS EXTERNAS
+    // MÉTODOS DE NEGOCIO (Domain Logic) - USANDO CONSTANTES DEL DOMINIO
     // ============================================================
 
     public void validarDatos() {
@@ -109,7 +118,8 @@ public class Solicitud {
             throw new DatosSolicitudInvalidosException("El número de documento es obligatorio");
         }
 
-        if (numeroDocumento.length() < 6 || numeroDocumento.length() > 15) {
+        if (numeroDocumento.length() < BusinessConstants.Documento.LONGITUD_MINIMA ||
+                numeroDocumento.length() > BusinessConstants.Documento.LONGITUD_MAXIMA) {
             throw new DatosSolicitudInvalidosException("El número de documento debe tener entre 6 y 15 caracteres");
         }
 
@@ -125,7 +135,7 @@ public class Solicitud {
             throw new DatosSolicitudInvalidosException("El email no tiene un formato válido");
         }
 
-        if (telefono == null || !telefono.matches("\\+?[0-9]{10,15}")) {
+        if (telefono == null || !telefono.matches(BusinessConstants.Patterns.TELEFONO)) {
             throw new DatosSolicitudInvalidosException("El teléfono debe tener entre 10 y 15 dígitos");
         }
 
@@ -138,14 +148,11 @@ public class Solicitud {
             throw new DatosSolicitudInvalidosException("El monto solicitado es obligatorio");
         }
 
-        BigDecimal montoMinimo = new BigDecimal("100000");
-        BigDecimal montoMaximo = new BigDecimal("50000000");
-
-        if (montoSolicitado.compareTo(montoMinimo) < 0) {
+        if (montoSolicitado.compareTo(BusinessConstants.Financiero.MONTO_MINIMO) < 0) {
             throw new DatosSolicitudInvalidosException("El monto mínimo a solicitar es $100,000");
         }
 
-        if (montoSolicitado.compareTo(montoMaximo) > 0) {
+        if (montoSolicitado.compareTo(BusinessConstants.Financiero.MONTO_MAXIMO) > 0) {
             throw new DatosSolicitudInvalidosException("El monto máximo a solicitar es $50,000,000");
         }
     }
@@ -155,7 +162,13 @@ public class Solicitud {
             throw new DatosSolicitudInvalidosException("El tipo de crédito es obligatorio");
         }
 
-        Set<String> tiposPermitidos = Set.of("PERSONAL", "VEHICULO", "VIVIENDA", "EDUCATIVO");
+        Set<String> tiposPermitidos = Set.of(
+                BusinessConstants.TipoCredito.PERSONAL,
+                BusinessConstants.TipoCredito.VEHICULO,
+                BusinessConstants.TipoCredito.VIVIENDA,
+                BusinessConstants.TipoCredito.EDUCATIVO
+        );
+
         if (!tiposPermitidos.contains(tipoCredito.toUpperCase())) {
             throw new DatosSolicitudInvalidosException(
                     "Tipo de crédito no válido. Tipos permitidos: " + String.join(", ", tiposPermitidos)
@@ -168,18 +181,18 @@ public class Solicitud {
             return false;
         }
 
-        // Regla 1: Gastos no pueden superar 70% de ingresos
+        // Regla 1: Gastos no pueden superar 70% de ingresos - CORREGIDO RoundingMode
         BigDecimal porcentajeGastos = gastosMensuales
-                .divide(ingresosMensuales, 4, BigDecimal.ROUND_HALF_UP)
+                .divide(ingresosMensuales, 4, RoundingMode.HALF_UP)
                 .multiply(new BigDecimal("100"));
 
-        if (porcentajeGastos.compareTo(new BigDecimal("70")) > 0) {
+        if (porcentajeGastos.compareTo(BusinessConstants.Financiero.PORCENTAJE_GASTOS_MAXIMO) > 0) {
             this.observaciones = "Gastos superan el 70% de los ingresos";
             return false;
         }
 
         // Regla 2: Monto solicitado no puede superar 5 veces los ingresos mensuales
-        BigDecimal capacidadMaxima = ingresosMensuales.multiply(new BigDecimal("5"));
+        BigDecimal capacidadMaxima = ingresosMensuales.multiply(BusinessConstants.Financiero.MULTIPLICADOR_CAPACIDAD_MAXIMA);
         if (montoSolicitado.compareTo(capacidadMaxima) > 0) {
             this.observaciones = "Monto solicitado supera 5 veces los ingresos mensuales";
             return false;
@@ -200,13 +213,9 @@ public class Solicitud {
         this.fechaActualizacion = LocalDateTime.now();
     }
 
-    public void preAprobarAutomaticamente() {
-        if (evaluarCapacidadPago()) {
-            cambiarEstado(EstadoSolicitud.PRE_APROBADA, "Pre-aprobada automáticamente por el sistema");
-        } else {
-            this.observaciones = observaciones != null ? observaciones : "Requiere evaluación manual";
-            this.fechaActualizacion = LocalDateTime.now();
-        }
+    public void asignarEstadoInicial() {
+        this.estado = EstadoSolicitud.PENDIENTE_REVISION;
+        this.fechaCreacion = LocalDateTime.now();
     }
 
     public boolean puedeSerEditada() {
@@ -223,11 +232,28 @@ public class Solicitud {
         }
 
         BigDecimal ingresoDisponible = ingresosMensuales.subtract(gastosMensuales);
-        return ingresoDisponible.multiply(new BigDecimal("0.30"));
+        return ingresoDisponible.multiply(BusinessConstants.Financiero.PORCENTAJE_CAPACIDAD_ENDEUDAMIENTO);
+    }
+
+    public boolean tieneCapacidadPago() {
+        BigDecimal capacidad = calcularCapacidadEndeudamiento();
+        if (montoSolicitado == null) {
+            return false;
+        }
+        // Verificar si puede pagar al menos 5% del monto solicitado mensualmente
+        BigDecimal pagoMinimo = montoSolicitado.multiply(new BigDecimal("0.05"));
+        return capacidad.compareTo(pagoMinimo) >= 0;
     }
 
     public String getNombreCompleto() {
         return String.format("%s %s", nombres, apellidos);
+    }
+
+    public String generarResumen() {
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        return String.format("Solicitud %s - %s - %s - $%s - %s",
+                id, getNombreCompleto(), tipoCredito,
+                formatter.format(montoSolicitado), estado);
     }
 
     public boolean esNueva() {

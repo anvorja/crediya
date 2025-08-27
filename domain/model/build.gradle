@@ -7,6 +7,8 @@ dependencies {
     // Testing básico sin dependencias externas
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testImplementation 'org.assertj:assertj-core:3.26.3'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-junit-jupiter'
 
 }
 

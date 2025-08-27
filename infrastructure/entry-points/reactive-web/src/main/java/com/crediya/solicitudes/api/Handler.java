@@ -27,7 +27,7 @@ public class Handler {
     private final SolicitudRestMapper mapper;
 
     /**
-     * POST /api/v1/solicitudes
+     * POST /api/v1/solicitud
      * Handler para crear solicitud de préstamo
      */
     public Mono<ServerResponse> crearSolicitud(ServerRequest request) {
@@ -42,7 +42,8 @@ public class Handler {
     }
 
     /**
-     * GET /api/v1/solicitudes/{id}
+     * GET /api/v1/solicitud/{id}
+     * Handler para consultar solicitud por ID
      */
     public Mono<ServerResponse> consultarSolicitud(ServerRequest request) {
         String id = request.pathVariable("id");
@@ -51,7 +52,21 @@ public class Handler {
         // TODO: Implementar cuando tengamos ConsultarSolicitudUseCase
         return ServerResponse.ok()
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("{ \"message\": \"Endpoint en construcción\" }");
+                .bodyValue("{ \"message\": \"Endpoint en construcción\", \"solicitudId\": \"" + id + "\" }");
+    }
+
+    /**
+     * GET /api/v1/solicitud/documento/{numeroDocumento}
+     * Handler para consultar solicitud por número de documento
+     */
+    public Mono<ServerResponse> consultarPorDocumento(ServerRequest request) {
+        String numeroDocumento = request.pathVariable("numeroDocumento");
+        log.info("🔍 Handler - Consultando solicitud por documento: {}", numeroDocumento);
+
+        // TODO: Implementar cuando tengamos ConsultarSolicitudPorDocumentoUseCase
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{ \"message\": \"Endpoint en construcción\", \"numeroDocumento\": \"" + numeroDocumento + "\" }");
     }
 
     // ============================================================
@@ -72,7 +87,7 @@ public class Handler {
                 // 2. Ejecutar Caso de Uso PURO (síncrono - sin Reactor)
                 Solicitud solicitudCreada = crearSolicitudUseCase.ejecutar(solicitudDominio);
 
-                // 3. Mapear Entidad de Dominio → DTO Response (mapeo automático completo)
+                // 3. Mapear Entidad de Dominio → DTO Response
                 SolicitudResponse response = mapper.toResponse(solicitudCreada);
 
                 log.info("✅ Solicitud creada exitosamente: {} - Estado: {}",
@@ -103,24 +118,5 @@ public class Handler {
         return ServerResponse.status(500)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(errorResponse);
-    }
-
-    // ============================================================
-    // HANDLERS ORIGINALES DEL SCAFFOLD (mantener por compatibilidad)
-    // ============================================================
-
-    public Mono<ServerResponse> listenGETUseCase(ServerRequest serverRequest) {
-        // Mantener endpoint original del scaffold
-        return ServerResponse.ok().bodyValue("{ \"message\": \"Endpoint original del scaffold\" }");
-    }
-
-    public Mono<ServerResponse> listenGETOtherUseCase(ServerRequest serverRequest) {
-        // Mantener endpoint original del scaffold
-        return ServerResponse.ok().bodyValue("{ \"message\": \"Otro endpoint original del scaffold\" }");
-    }
-
-    public Mono<ServerResponse> listenPOSTUseCase(ServerRequest serverRequest) {
-        // Mantener endpoint original del scaffold
-        return ServerResponse.ok().bodyValue("{ \"message\": \"POST endpoint original del scaffold\" }");
     }
 }

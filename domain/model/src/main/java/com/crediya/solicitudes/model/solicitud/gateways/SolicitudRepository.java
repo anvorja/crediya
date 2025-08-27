@@ -1,59 +1,61 @@
+// domain/model/src/main/java/com/crediya/solicitudes/model/solicitud/gateways/SolicitudRepository.java
 package com.crediya.solicitudes.model.solicitud.gateways;
 
 import com.crediya.solicitudes.model.solicitud.Solicitud;
 import com.crediya.solicitudes.model.solicitud.EstadoSolicitud;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 /**
- * Gateway para la persistencia de solicitudes (Puerto Secundario)
+ * Gateway para persistencia de solicitudes
  */
 public interface SolicitudRepository {
 
     /**
-     * Guarda una nueva solicitud o actualiza una existente
+     * Guarda una solicitud
+     * @param solicitud la solicitud a guardar
+     * @return la solicitud guardada
      */
     Solicitud guardar(Solicitud solicitud);
 
     /**
-     * Busca una solicitud por su ID
+     * Busca una solicitud por ID
+     * @param id el ID de la solicitud
+     * @return la solicitud si existe
      */
     Optional<Solicitud> buscarPorId(String id);
 
     /**
-     * Busca una solicitud por número de documento
+     * Busca solicitudes por número de documento
+     * @param numeroDocumento el número de documento
+     * @return lista de solicitudes
      */
-    Optional<Solicitud> buscarPorNumeroDocumento(String numeroDocumento);
+    List<Solicitud> buscarPorDocumento(String numeroDocumento);
 
     /**
-     * Lista todas las solicitudes por estado
-     */
-    List<Solicitud> listarPorEstado(EstadoSolicitud estado);
-
-    /**
-     * Lista todas las solicitudes paginadas
-     */
-    List<Solicitud> listarTodas(int pagina, int tamanio);
-
-    /**
-     * Verifica si existe una solicitud activa para un número de documento
+     * Verifica si existe una solicitud activa para un documento
+     * @param numeroDocumento el número de documento
+     * @return true si existe una solicitud activa
      */
     boolean existeSolicitudActivaPorDocumento(String numeroDocumento);
 
     /**
-     * Cuenta el total de solicitudes por estado
+     * Busca solicitudes por estado
+     * @param estado el estado de la solicitud
+     * @return lista de solicitudes
      */
-    long contarPorEstado(EstadoSolicitud estado);
+    List<Solicitud> buscarPorEstado(EstadoSolicitud estado);
 
     /**
-     * Lista solicitudes por rango de fechas
+     * Busca todas las solicitudes
+     * @return lista de todas las solicitudes
      */
-    List<Solicitud> listarPorRangoFechas(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    List<Solicitud> buscarTodas();
 
     /**
-     * Busca solicitudes por términos de búsqueda
+     * Elimina una solicitud por ID
+     * @param id el ID de la solicitud
      */
-    List<Solicitud> buscarPorTermino(String termino, int pagina, int tamanio);
+    void eliminar(String id);
 }

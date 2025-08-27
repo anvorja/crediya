@@ -1,49 +1,41 @@
 // domain/model/src/main/java/com/crediya/solicitudes/model/solicitud/gateways/ValidacionExternaGateway.java
 package com.crediya.solicitudes.model.solicitud.gateways;
 
-import java.math.BigDecimal;
+import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento;
+import com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio;
+
 import java.util.Optional;
 
 /**
- * Gateway para validaciones externas (Puerto Secundario)
+ * Gateway para validaciones externas
  */
 public interface ValidacionExternaGateway {
 
     /**
-     * Valida si un número de documento existe en bases de datos oficiales
+     * Valida un documento de identidad
+     * @param numeroDocumento el número de documento
+     * @return resultado de la validación si está disponible
      */
     Optional<ValidacionDocumento> validarDocumento(String numeroDocumento);
 
     /**
-     * Consulta el historial crediticio del solicitante
+     * Consulta el historial crediticio de una persona
+     * @param numeroDocumento el número de documento
+     * @return historial crediticio si está disponible
      */
     Optional<HistorialCrediticio> consultarHistorialCrediticio(String numeroDocumento);
 
     /**
-     * Valida la información financiera del solicitante
+     * Verifica si una persona está en listas restrictivas
+     * @param numeroDocumento el número de documento
+     * @return true si está en listas restrictivas
      */
-    Optional<ValidacionFinanciera> validarInformacionFinanciera(String numeroDocumento, BigDecimal ingresosDeclarados);
+    boolean verificarListasRestrictivas(String numeroDocumento);
 
-    // Value Objects para las respuestas - DOMINIO PURO
-    record ValidacionDocumento(
-            boolean esValido,
-            String nombre,
-            String apellido,
-            String mensaje
-    ) {}
-
-    record HistorialCrediticio(
-            int puntajeCrediticio,
-            boolean tieneReportesNegativos,
-            int cantidadCreditos,
-            BigDecimal totalDeudas,
-            String observaciones
-    ) {}
-
-    record ValidacionFinanciera(
-            boolean ingresosVerificados,
-            BigDecimal ingresosProbados,
-            String fuenteValidacion,
-            String observaciones
-    ) {}
+    /**
+     * Consulta ingresos declarados en fuentes externas
+     * @param numeroDocumento el número de documento
+     * @return ingresos declarados, si están disponibles
+     */
+    Optional<java.math.BigDecimal> consultarIngresosDeclarados(String numeroDocumento);
 }

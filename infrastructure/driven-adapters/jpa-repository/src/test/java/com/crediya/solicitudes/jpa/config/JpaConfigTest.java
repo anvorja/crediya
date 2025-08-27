@@ -1,3 +1,4 @@
+// infrastructure/driven-adapters/jpa-repository/src/test/java/com/crediya/solicitudes/jpa/config/JpaConfigTest.java
 package com.crediya.solicitudes.jpa.config;
 
 import org.springframework.core.env.Environment;

@@ -1,6 +1,6 @@
 package com.crediya.solicitudes.api.dto.request;
 
-import com.crediya.solicitudes.api.constants.BusinessConstants;
+import com.crediya.solicitudes.model.constants.BusinessConstants;
 import com.crediya.solicitudes.api.constants.ValidationMessagesConstants;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;

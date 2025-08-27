@@ -1,3 +1,4 @@
+// infrastructure/driven-adapters/jpa-repository/src/main/java/com/crediya/solicitudes/jpa/mapper/SolicitudEntityMapper.java
 package com.crediya.solicitudes.jpa.mapper;
 
 import com.crediya.solicitudes.jpa.entity.SolicitudEntity;
@@ -29,19 +30,19 @@ public interface SolicitudEntityMapper {
     Solicitud toDomain(SolicitudEntity entity);
 
     /**
-     * Mapeo de estados del dominio a JPA
+     * Mapeo de estados del dominio a JPA - SIN PRE_APROBADA
      */
     @ValueMapping(source = "PENDIENTE_REVISION", target = "PENDIENTE_REVISION")
-    @ValueMapping(source = "PRE_APROBADA", target = "PRE_APROBADA")
+    @ValueMapping(source = "EN_REVISION", target = "EN_REVISION")
     @ValueMapping(source = "APROBADA", target = "APROBADA")
     @ValueMapping(source = "RECHAZADA", target = "RECHAZADA")
     SolicitudEntity.EstadoSolicitudEntity mapEstadoToEntity(EstadoSolicitud estado);
 
     /**
-     * Mapeo de estados de JPA a dominio
+     * Mapeo de estados de JPA a dominio - SIN PRE_APROBADA
      */
     @ValueMapping(source = "PENDIENTE_REVISION", target = "PENDIENTE_REVISION")
-    @ValueMapping(source = "PRE_APROBADA", target = "PRE_APROBADA")
+    @ValueMapping(source = "EN_REVISION", target = "EN_REVISION")
     @ValueMapping(source = "APROBADA", target = "APROBADA")
     @ValueMapping(source = "RECHAZADA", target = "RECHAZADA")
     EstadoSolicitud mapEstadoToDomain(SolicitudEntity.EstadoSolicitudEntity estado);

@@ -2,7 +2,12 @@
 package com.crediya.solicitudes.model.solicitud.exception;
 
 public class TransicionEstadoInvalidaException extends RuntimeException {
+
     public TransicionEstadoInvalidaException(String mensaje) {
         super(mensaje);
+    }
+
+    public TransicionEstadoInvalidaException(String mensaje, Throwable causa) {
+        super(mensaje, causa);
     }
 }

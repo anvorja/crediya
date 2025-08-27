@@ -4,27 +4,31 @@ package com.crediya.solicitudes.model.solicitud.gateways;
 import com.crediya.solicitudes.model.solicitud.Solicitud;
 
 /**
- * Gateway para el envío de notificaciones (Puerto Secundario)
- * DOMINIO PURO: Sin dependencias de Reactor
+ * Gateway para envío de notificaciones
  */
 public interface NotificationGateway {
 
     /**
-     * Notifica al solicitante sobre el estado de su solicitud
+     * Notifica cuando se crea una nueva solicitud
+     * @param solicitud la solicitud creada
      */
-    boolean notificarEstadoSolicitud(Solicitud solicitud, TipoNotificacion tipo);
+    void notificarSolicitudCreada(Solicitud solicitud);
 
     /**
-     * Notifica a los administradores sobre una nueva solicitud
+     * Notifica cuando cambia el estado de una solicitud
+     * @param solicitud la solicitud actualizada
      */
-    boolean notificarNuevaSolicitudAAdministradores(Solicitud solicitud);
+    void notificarCambioEstado(Solicitud solicitud);
 
     /**
-     * Notifica cuando una solicitud requiere revisión manual
+     * Notifica cuando una solicitud es aprobada
+     * @param solicitud la solicitud aprobada
      */
-    boolean notificarSolicitudRequiereRevision(Solicitud solicitud);
+    void notificarSolicitudAprobada(Solicitud solicitud);
 
-    enum TipoNotificacion {
-        EMAIL, SMS, PUSH, TODOS
-    }
+    /**
+     * Notifica cuando una solicitud es rechazada
+     * @param solicitud la solicitud rechazada
+     */
+    void notificarSolicitudRechazada(Solicitud solicitud);
 }

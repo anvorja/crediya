@@ -1,3 +1,4 @@
+// infrastructure/entry-points/reactive-web/src/main/java/com/crediya/solicitudes/api/config/CorsConfig.java
 package com.crediya.solicitudes.api.config;
 
 import org.springframework.beans.factory.annotation.Value;

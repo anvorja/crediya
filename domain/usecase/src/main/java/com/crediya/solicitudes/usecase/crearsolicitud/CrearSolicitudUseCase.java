@@ -1,21 +1,15 @@
-// java/com/crediya/solicitudes/usecase/crearsolicitud/CrearSolicitudUseCase.java
+// domain/usecase/src/main/java/com/crediya/solicitudes/usecase/crearsolicitud/CrearSolicitudUseCase.java
 package com.crediya.solicitudes.usecase.crearsolicitud;
 
-import com.crediya.solicitudes.model.solicitud.Solicitud;
 import com.crediya.solicitudes.model.solicitud.EstadoSolicitud;
+import com.crediya.solicitudes.model.solicitud.Solicitud;
 import com.crediya.solicitudes.model.solicitud.exception.SolicitudDuplicadaException;
-import com.crediya.solicitudes.model.solicitud.gateways.*;
-import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
-import com.crediya.solicitudes.model.solicitud.gateways.NotificationGateway;
 import com.crediya.solicitudes.model.solicitud.gateways.EventPublisherGateway;
+import com.crediya.solicitudes.model.solicitud.gateways.NotificationGateway;
+import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
 
-/**
- * Caso de uso PURO para crear una nueva solicitud de préstamo
- * SIN DEPENDENCIAS EXTERNAS: Sin Reactor, sin logging, sin frameworks
- */
 public class CrearSolicitudUseCase {
-
     private final SolicitudRepository solicitudRepository;
     private final NotificationGateway notificationGateway;
     private final EventPublisherGateway eventPublisherGateway;
@@ -100,33 +94,32 @@ public class CrearSolicitudUseCase {
     }
 
     private void evaluarYActualizarEstado(Solicitud solicitud) {
-        // Si tiene observaciones de validaciones externas, requiere revisión manual
-        if (solicitud.getObservaciones() != null &&
-                !solicitud.getObservaciones().trim().isEmpty()) {
-            return; // Mantiene estado PENDIENTE_REVISION
-        }
+        // Evaluar capacidad de pago automáticamente
+        boolean tieneCapacidadPago = solicitud.evaluarCapacidadPago();
 
-        // Evaluar automáticamente usando lógica de dominio pura
-        solicitud.preAprobarAutomaticamente();
+        if (!tieneCapacidadPago) {
+            // Si no tiene capacidad de pago, mantener en PENDIENTE_REVISION
+            solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
+            agregarObservacion(solicitud, "Requiere evaluación manual por capacidad de pago");
+        } else {
+            // Si tiene capacidad, puede mantenerse en PENDIENTE_REVISION para revisión humana
+            solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
+        }
     }
 
-    private void notificarYPublicarEventos(Solicitud solicitud) {
+    private void notificarYPublicarEventos(Solicitud solicitudGuardada) {
         try {
-            // Notificar al solicitante (mejor esfuerzo)
-            notificationGateway.notificarEstadoSolicitud(
-                    solicitud, NotificationGateway.TipoNotificacion.EMAIL);
-
-            // Notificar a administradores si requiere revisión
-            if (solicitud.getEstado() == EstadoSolicitud.PENDIENTE_REVISION) {
-                notificationGateway.notificarSolicitudRequiereRevision(solicitud);
-            }
-
-            // Publicar evento de solicitud creada
-            eventPublisherGateway.publicarSolicitudCreada(solicitud);
-
+            notificationGateway.notificarSolicitudCreada(solicitudGuardada);
         } catch (Exception e) {
-            // Los errores de notificación no deben fallar el caso de uso principal
-            // En infraestructura se manejará el logging de estos errores
+            // Log del error pero no fallar el proceso principal
+            // logger.warn("Error enviando notificación: {}", e.getMessage());
+        }
+
+        try {
+            eventPublisherGateway.publicarEventoSolicitudCreada(solicitudGuardada);
+        } catch (Exception e) {
+            // Log del error pero no fallar el proceso principal
+            // logger.warn("Error publicando evento: {}", e.getMessage());
         }
     }
 }

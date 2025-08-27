@@ -1,3 +1,4 @@
+// infrastructure/entry-points/reactive-web/src/main/java/com/crediya/solicitudes/api/controller/SolicitudController.java
 package com.crediya.solicitudes.api.controller;
 
 import com.crediya.solicitudes.api.dto.request.CrearSolicitudRequest;

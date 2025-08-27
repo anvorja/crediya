@@ -1,3 +1,4 @@
+// infrastructure/driven-adapters/jpa-repository/src/test/java/com/crediya/solicitudes/jpa/helper/AdapterOperationsTest.java
 package com.crediya.solicitudes.jpa.helper;
 
 import com.crediya.solicitudes.jpa.SolicitudRepository;

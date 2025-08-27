@@ -1,3 +1,4 @@
+// applications/app-service/src/main/java/com/crediya/solicitudes/config/UseCasesConfig.java
 package com.crediya.solicitudes.config;
 
 import org.springframework.context.annotation.ComponentScan;

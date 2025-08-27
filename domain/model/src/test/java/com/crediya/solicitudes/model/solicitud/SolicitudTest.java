@@ -14,7 +14,87 @@ import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.*;
 
+@DisplayName("Solicitud - Entidad del Dominio")
 class SolicitudTest {
+
+    @Nested
+    @DisplayName("Criterios de Aceptación - Validación de Datos")
+    class CriteriosAceptacionValidacion {
+
+        @Test
+        @DisplayName("CA-1: Debe validar solicitud con datos completos del cliente")
+        void debeValidarSolicitudConDatosCompletosCliente() {
+            // Given - Solicitud con datos completos según criterios de aceptación
+            Solicitud solicitud = crearSolicitudValida();
+            solicitud.setNumeroDocumento("12345678");    // Documento de identidad
+            solicitud.setNombres("Juan Carlos");
+            solicitud.setApellidos("Pérez Gómez");
+            solicitud.setEmail("juan.perez@email.com");
+            solicitud.setTelefono("+573001234567");
+
+            // When & Then - No debe lanzar excepción
+            assertThatNoException().isThrownBy(solicitud::validarDatos);
+        }
+
+        @Test
+        @DisplayName("CA-1: Debe validar solicitud con detalles del préstamo")
+        void debeValidarSolicitudConDetallesPrestamo() {
+            // Given - Solicitud con detalles del préstamo según criterios
+            Solicitud solicitud = crearSolicitudValida();
+            solicitud.setMontoSolicitado(new BigDecimal("5000000"));  // Monto
+            solicitud.setPlazoMeses(24);                              // Plazo
+            solicitud.setTipoCredito("PERSONAL");                     // Tipo de préstamo
+
+            // When & Then - No debe lanzar excepción
+            assertThatNoException().isThrownBy(solicitud::validarDatos);
+        }
+
+        @Test
+        @DisplayName("CA-2: Debe asignar estado inicial PENDIENTE_REVISION")
+        void debeAsignarEstadoInicialPendienteRevision() {
+            // Given
+            Solicitud solicitud = new Solicitud();
+
+            // When - Asignar estado inicial
+            solicitud.asignarEstadoInicial();
+
+            // Then
+            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE_REVISION);
+            assertThat(solicitud.getFechaCreacion()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("CA-3: Debe validar tipos de préstamo permitidos")
+        void debeValidarTiposPrestamoPermitidos() {
+            // Given - Tipos válidos según BusinessConstants
+            String[] tiposValidos = {"PERSONAL", "VEHICULO", "VIVIENDA", "EDUCATIVO"};
+
+            for (String tipo : tiposValidos) {
+                Solicitud solicitud = crearSolicitudValida();
+                solicitud.setTipoCredito(tipo);
+
+                // When & Then - No debe lanzar excepción
+                assertThatNoException().isThrownBy(solicitud::validarDatos);
+            }
+        }
+
+        @Test
+        @DisplayName("CA-3: Debe rechazar tipos de préstamo no válidos")
+        void debeRechazarTiposPrestamoNoValidos() {
+            // Given - Tipos inválidos
+            String[] tiposInvalidos = {"HIPOTECARIO", "COMERCIAL", "TIPO_INEXISTENTE", ""};
+
+            for (String tipo : tiposInvalidos) {
+                Solicitud solicitud = crearSolicitudValida();
+                solicitud.setTipoCredito(tipo);
+
+                // When & Then
+                assertThatThrownBy(solicitud::validarDatos)
+                        .isInstanceOf(DatosSolicitudInvalidosException.class)
+                        .hasMessageContaining("Tipo de crédito no válido");
+            }
+        }
+    }
 
     @Nested
     @DisplayName("Validación de Datos")
@@ -77,7 +157,7 @@ class SolicitudTest {
         void debeFallarConMontoMenorAlMinimo() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            solicitud.setMontoSolicitado(new BigDecimal("50000"));
+            solicitud.setMontoSolicitado(new BigDecimal("99999")); // Menor a 100,000
 
             // When & Then
             assertThatThrownBy(solicitud::validarDatos)
@@ -90,7 +170,7 @@ class SolicitudTest {
         void debeFallarConMontoMayorAlMaximo() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            solicitud.setMontoSolicitado(new BigDecimal("51000000"));
+            solicitud.setMontoSolicitado(new BigDecimal("50000001")); // Mayor a 50,000,000
 
             // When & Then
             assertThatThrownBy(solicitud::validarDatos)
@@ -99,157 +179,58 @@ class SolicitudTest {
         }
 
         @ParameterizedTest
-        @ValueSource(strings = {"INVALIDO", "OTRO", ""})
-        @DisplayName("Debe fallar con tipo de crédito inválido")
-        void debeFallarConTipoCreditoInvalido(String tipoCredito) {
+        @ValueSource(strings = {"123456789", "+5730012345678901", "abcd1234"})
+        @DisplayName("Debe fallar con teléfono inválido")
+        void debeFallarConTelefonoInvalido(String telefono) {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            solicitud.setTipoCredito(tipoCredito);
+            solicitud.setTelefono(telefono);
 
             // When & Then
             assertThatThrownBy(solicitud::validarDatos)
                     .isInstanceOf(DatosSolicitudInvalidosException.class)
-                    .hasMessageContaining("Tipo de crédito no válido");
+                    .hasMessageContaining("teléfono");
         }
     }
 
     @Nested
-    @DisplayName("Evaluación de Capacidad de Pago")
-    class EvaluacionCapacidadPago {
+    @DisplayName("Gestión de Estados")
+    class GestionEstados {
 
         @Test
-        @DisplayName("Debe aprobar con buena capacidad de pago")
-        void debeAprobarConBuenaCapacidadPago() {
-            // Given
-            Solicitud solicitud = crearSolicitudConCapacidadPago(
-                    new BigDecimal("5000000"), // ingresos
-                    new BigDecimal("3000000"), // gastos (60%)
-                    new BigDecimal("10000000") // monto (2x ingresos)
-            );
-
-            // When - TEST SIMPLE SIN REACTOR
-            boolean resultado = solicitud.evaluarCapacidadPago();
-
-            // Then
-            assertThat(resultado).isTrue();
-            assertThat(solicitud.getObservaciones()).doesNotContain("superan");
-        }
-
-        @Test
-        @DisplayName("Debe rechazar con gastos excesivos")
-        void debeRechazarConGastosExcesivos() {
-            // Given
-            Solicitud solicitud = crearSolicitudConCapacidadPago(
-                    new BigDecimal("5000000"), // ingresos
-                    new BigDecimal("3600000"), // gastos (72%)
-                    new BigDecimal("10000000") // monto
-            );
-
-            // When
-            boolean resultado = solicitud.evaluarCapacidadPago();
-
-            // Then
-            assertThat(resultado).isFalse();
-            assertThat(solicitud.getObservaciones()).contains("70% de los ingresos");
-        }
-
-        @Test
-        @DisplayName("Debe rechazar con monto excesivo")
-        void debeRechazarConMontoExcesivo() {
-            // Given
-            Solicitud solicitud = crearSolicitudConCapacidadPago(
-                    new BigDecimal("5000000"), // ingresos
-                    new BigDecimal("2000000"), // gastos (40%)
-                    new BigDecimal("30000000") // monto (6x ingresos)
-            );
-
-            // When
-            boolean resultado = solicitud.evaluarCapacidadPago();
-
-            // Then
-            assertThat(resultado).isFalse();
-            assertThat(solicitud.getObservaciones()).contains("5 veces los ingresos");
-        }
-
-        @Test
-        @DisplayName("Debe rechazar sin información financiera")
-        void debeRechazarSinInformacionFinanciera() {
+        @DisplayName("Debe permitir transición válida de PENDIENTE a EN_REVISION")
+        void debePermitirTransicionValidaPendienteAEnRevision() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            solicitud.setIngresosMensuales(null);
-            solicitud.setGastosMensuales(null);
+            solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
 
             // When
-            boolean resultado = solicitud.evaluarCapacidadPago();
+            solicitud.cambiarEstado(EstadoSolicitud.EN_REVISION, "Iniciando revisión");
 
             // Then
-            assertThat(resultado).isFalse();
-        }
-    }
-
-    @Nested
-    @DisplayName("Pre-aprobación Automática")
-    class PreAprobacionAutomatica {
-
-        @Test
-        @DisplayName("Debe pre-aprobar automáticamente con buena capacidad")
-        void debePreAprobarAutomaticamente() {
-            // Given
-            Solicitud solicitud = crearSolicitudConCapacidadPago(
-                    new BigDecimal("5000000"),
-                    new BigDecimal("2000000"),
-                    new BigDecimal("10000000")
-            );
-
-            // When - TEST SIMPLE SIN REACTOR
-            solicitud.preAprobarAutomaticamente();
-
-            // Then
-            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.PRE_APROBADA);
-            assertThat(solicitud.getObservaciones()).contains("Pre-aprobada automáticamente");
-        }
-
-        @Test
-        @DisplayName("Debe mantener en revisión con mala capacidad")
-        void debeMantenerEnRevisionConMalaCapacidad() {
-            // Given
-            Solicitud solicitud = crearSolicitudConCapacidadPago(
-                    new BigDecimal("5000000"),
-                    new BigDecimal("4000000"), // 80% gastos
-                    new BigDecimal("10000000")
-            );
-
-            // When
-            solicitud.preAprobarAutomaticamente();
-
-            // Then
-            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.PENDIENTE_REVISION);
-            assertThat(solicitud.getObservaciones()).isNotBlank();
-        }
-    }
-
-    @Nested
-    @DisplayName("Transiciones de Estado")
-    class TransicionesEstado {
-
-        @Test
-        @DisplayName("Debe permitir transición de PENDIENTE_REVISION a PRE_APROBADA")
-        void debePermitirTransicionPendienteAPreAprobada() {
-            // Given
-            Solicitud solicitud = crearSolicitudValida();
-
-            // When
-            solicitud.cambiarEstado(EstadoSolicitud.PRE_APROBADA, "Pre-aprobada automáticamente");
-
-            // Then
-            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.PRE_APROBADA);
-            assertThat(solicitud.getObservaciones()).isEqualTo("Pre-aprobada automáticamente");
+            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.EN_REVISION);
+            assertThat(solicitud.getObservaciones()).contains("Iniciando revisión");
             assertThat(solicitud.getFechaActualizacion()).isNotNull();
         }
 
         @Test
-        @DisplayName("No debe permitir transición de APROBADA a PENDIENTE_REVISION")
-        void noDebePermitirTransicionAprobadaAPendiente() {
+        @DisplayName("Debe permitir transición válida de EN_REVISION a APROBADA")
+        void debePermitirTransicionValidaEnRevisionAAprobada() {
+            // Given
+            Solicitud solicitud = crearSolicitudValida();
+            solicitud.setEstado(EstadoSolicitud.EN_REVISION);
+
+            // When
+            solicitud.cambiarEstado(EstadoSolicitud.APROBADA, "Solicitud aprobada");
+
+            // Then
+            assertThat(solicitud.getEstado()).isEqualTo(EstadoSolicitud.APROBADA);
+            assertThat(solicitud.getFechaActualizacion()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("No debe permitir transición inválida de APROBADA a PENDIENTE")
+        void noDebePermitirTransicionInvalidaAprobadaAPendiente() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
             solicitud.setEstado(EstadoSolicitud.APROBADA);
@@ -341,6 +322,96 @@ class SolicitudTest {
             assertThat(rechazada.estaEnEstadoFinal()).isTrue();
             assertThat(pendiente.estaEnEstadoFinal()).isFalse();
         }
+
+        @Test
+        @DisplayName("Debe validar capacidad de pago correctamente")
+        void debeValidarCapacidadPagoCorrectamente() {
+            // Given - Cliente con capacidad suficiente
+            Solicitud solicitudViable = crearSolicitudConCapacidadPago(
+                    new BigDecimal("5000000"), // Ingresos
+                    new BigDecimal("2000000"), // Gastos
+                    new BigDecimal("500000")   // Monto solicitado
+            );
+
+            // Given - Cliente sin capacidad suficiente
+            Solicitud solicitudNoViable = crearSolicitudConCapacidadPago(
+                    new BigDecimal("3000000"), // Ingresos
+                    new BigDecimal("2800000"), // Gastos
+                    new BigDecimal("500000")   // Monto solicitado (excede capacidad)
+            );
+
+            // When & Then
+            assertThat(solicitudViable.tieneCapacidadPago()).isTrue();
+            assertThat(solicitudNoViable.tieneCapacidadPago()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Debe generar resumen de solicitud")
+        void debeGenerarResumenSolicitud() {
+            // Given
+            Solicitud solicitud = crearSolicitudValida();
+            solicitud.setId("SOL-001");
+
+            // When
+            String resumen = solicitud.generarResumen();
+
+            // Then
+            assertThat(resumen)
+                    .contains("SOL-001")
+                    .contains("Juan Carlos Pérez Gómez")
+                    .contains("PERSONAL")
+                    .contains("5,000,000")
+                    .contains("PENDIENTE_REVISION");
+        }
+    }
+
+    @Nested
+    @DisplayName("Validaciones de Negocio Específicas")
+    class ValidacionesNegocioEspecificas {
+
+        @Test
+        @DisplayName("Debe validar plazo según tipo de crédito")
+        void debeValidarPlazoSegunTipoCredito() {
+            // Given - Crédito personal con plazo válido
+            Solicitud personal = crearSolicitudValida();
+            personal.setTipoCredito("PERSONAL");
+            personal.setPlazoMeses(36); // Válido para personal (6-60 meses)
+
+            // Given - Crédito de vivienda con plazo válido
+            Solicitud vivienda = crearSolicitudValida();
+            vivienda.setTipoCredito("VIVIENDA");
+            vivienda.setPlazoMeses(240); // Válido para vivienda (hasta 360 meses)
+
+            // When & Then - Ambos deben ser válidos
+            assertThatNoException().isThrownBy(personal::validarDatos);
+            assertThatNoException().isThrownBy(vivienda::validarDatos);
+        }
+
+        @Test
+        @DisplayName("Debe rechazar plazo inválido para tipo de crédito")
+        void debeRechazarPlazoInvalidoParaTipoCredito() {
+            // Given - Crédito personal con plazo muy largo
+            Solicitud personal = crearSolicitudValida();
+            personal.setTipoCredito("PERSONAL");
+            personal.setPlazoMeses(121); // Excede máximo para personal (120 meses)
+
+            // When & Then
+            assertThatThrownBy(personal::validarDatos)
+                    .isInstanceOf(DatosSolicitudInvalidosException.class)
+                    .hasMessageContaining("plazo");
+        }
+
+        @Test
+        @DisplayName("Debe validar coherencia entre monto y tipo de crédito")
+        void debeValidarCoherenciaMontoTipoCredito() {
+            // Given - Crédito educativo con monto razonable
+            Solicitud educativo = crearSolicitudValida();
+            educativo.setTipoCredito("EDUCATIVO");
+            educativo.setMontoSolicitado(new BigDecimal("10000000")); // 10M para educación
+
+            // When & Then
+            assertThatNoException().isThrownBy(educativo::validarDatos);
+        }
     }
 
     // ============================================================
@@ -355,9 +426,12 @@ class SolicitudTest {
         solicitud.setEmail("juan.perez@email.com");
         solicitud.setTelefono("+573001234567");
         solicitud.setMontoSolicitado(new BigDecimal("5000000"));
+        solicitud.setPlazoMeses(24);
         solicitud.setTipoCredito("PERSONAL");
         solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
         solicitud.setFechaCreacion(LocalDateTime.now());
+        solicitud.setIngresosMensuales(new BigDecimal("3000000"));
+        solicitud.setGastosMensuales(new BigDecimal("1500000"));
         return solicitud;
     }
 
