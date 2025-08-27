@@ -1,0 +1,4 @@
+// domain/usecase/build.gradle
+dependencies {
+    implementation project(':model')
+}

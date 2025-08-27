@@ -1,0 +1,126 @@
+// infrastructure/entry-points/reactive-web/src/main/java/com/crediya/solicitudes/api/Handler.java
+package com.crediya.solicitudes.api;
+
+import com.crediya.solicitudes.api.dto.request.CrearSolicitudRequest;
+import com.crediya.solicitudes.api.dto.response.SolicitudResponse;
+import com.crediya.solicitudes.api.mapper.SolicitudRestMapper;
+import com.crediya.solicitudes.model.solicitud.Solicitud;
+import com.crediya.solicitudes.usecase.crearsolicitud.CrearSolicitudUseCase;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.server.ServerRequest;
+import org.springframework.web.reactive.function.server.ServerResponse;
+import reactor.core.publisher.Mono;
+
+/**
+ * Handler para Router Functions (estilo funcional de WebFlux)
+ * Integramos el dominio puro con la infraestructura reactiva
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class Handler {
+
+    private final CrearSolicitudUseCase crearSolicitudUseCase;
+    private final SolicitudRestMapper mapper;
+
+    /**
+     * POST /api/v1/solicitudes
+     * Handler para crear solicitud de préstamo
+     */
+    public Mono<ServerResponse> crearSolicitud(ServerRequest request) {
+        log.info("🚀 Handler - Procesando creación de solicitud");
+
+        return request.bodyToMono(CrearSolicitudRequest.class)
+                .flatMap(this::procesarSolicitud)
+                .flatMap(response -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(response))
+                .onErrorResume(this::handleError);
+    }
+
+    /**
+     * GET /api/v1/solicitudes/{id}
+     */
+    public Mono<ServerResponse> consultarSolicitud(ServerRequest request) {
+        String id = request.pathVariable("id");
+        log.info("🔍 Handler - Consultando solicitud: {}", id);
+
+        // TODO: Implementar cuando tengamos ConsultarSolicitudUseCase
+        return ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{ \"message\": \"Endpoint en construcción\" }");
+    }
+
+    // ============================================================
+    // MÉTODOS AUXILIARES
+    // ============================================================
+
+    /**
+     * Procesa la creación de solicitud - CONVIERTE REACTIVO → SÍNCRONO → REACTIVO
+     */
+    private Mono<SolicitudResponse> procesarSolicitud(CrearSolicitudRequest request) {
+        return Mono.fromCallable(() -> {
+            try {
+                log.info("📋 Procesando solicitud para documento: {}", request.getNumeroDocumento());
+
+                // 1. Mapear DTO → Entidad de Dominio
+                Solicitud solicitudDominio = mapper.toModel(request);
+
+                // 2. Ejecutar Caso de Uso PURO (síncrono - sin Reactor)
+                Solicitud solicitudCreada = crearSolicitudUseCase.ejecutar(solicitudDominio);
+
+                // 3. Mapear Entidad de Dominio → DTO Response (mapeo automático completo)
+                SolicitudResponse response = mapper.toResponse(solicitudCreada);
+
+                log.info("✅ Solicitud creada exitosamente: {} - Estado: {}",
+                        solicitudCreada.getId(), solicitudCreada.getEstado());
+
+                return response;
+
+            } catch (Exception e) {
+                log.error("❌ Error en Handler creando solicitud: {}", e.getMessage());
+                throw new RuntimeException("Error procesando solicitud", e);
+            }
+        });
+    }
+
+    /**
+     * Manejo de errores para Router Functions
+     */
+    private Mono<ServerResponse> handleError(Throwable error) {
+        log.error("🚨 Error en Handler: {}", error.getMessage(), error);
+
+        // Crear respuesta de error simple
+        String errorResponse = String.format(
+                "{ \"error\": \"Error interno\", \"message\": \"%s\", \"timestamp\": \"%s\" }",
+                error.getMessage(),
+                java.time.LocalDateTime.now()
+        );
+
+        return ServerResponse.status(500)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(errorResponse);
+    }
+
+    // ============================================================
+    // HANDLERS ORIGINALES DEL SCAFFOLD (mantener por compatibilidad)
+    // ============================================================
+
+    public Mono<ServerResponse> listenGETUseCase(ServerRequest serverRequest) {
+        // Mantener endpoint original del scaffold
+        return ServerResponse.ok().bodyValue("{ \"message\": \"Endpoint original del scaffold\" }");
+    }
+
+    public Mono<ServerResponse> listenGETOtherUseCase(ServerRequest serverRequest) {
+        // Mantener endpoint original del scaffold
+        return ServerResponse.ok().bodyValue("{ \"message\": \"Otro endpoint original del scaffold\" }");
+    }
+
+    public Mono<ServerResponse> listenPOSTUseCase(ServerRequest serverRequest) {
+        // Mantener endpoint original del scaffold
+        return ServerResponse.ok().bodyValue("{ \"message\": \"POST endpoint original del scaffold\" }");
+    }
+}

@@ -1,0 +1,29 @@
+// infrastructure/driven-adapters/jpa-repository/build.gradle
+dependencies {
+    implementation project(':model')
+
+    // Spring Data JPA
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // ObjectMapper para el AdapterOperations heredado
+    implementation 'org.reactivecommons.utils:object-mapper-api:0.1.0'
+
+    // MapStruct para mapeos automáticos
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+
+    // H2 Database para desarrollo - EN PRODUCCIÓN CAMBIAR POR BASE REAL
+    runtimeOnly 'com.h2database:h2'
+
+    // Para logging estructurado
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+
+    // Testing
+    testImplementation 'org.reactivecommons.utils:object-mapper:0.1.0'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'com.h2database:h2'
+
+    // Para pruebas de JPA
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    testImplementation 'org.springframework.boot:spring-boot-test-autoconfigure'
+}
