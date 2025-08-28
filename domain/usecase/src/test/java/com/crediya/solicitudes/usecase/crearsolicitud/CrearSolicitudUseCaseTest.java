@@ -31,7 +31,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT) // Solución global para UnnecessaryStubbingException
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("CrearSolicitudUseCase - Tests Reactivos")
 class CrearSolicitudUseCaseTest {
 
@@ -61,31 +61,13 @@ class CrearSolicitudUseCaseTest {
         @Test
         @DisplayName("CA-1: Debe registrar solicitud con datos completos del cliente y préstamo")
         void debeRegistrarSolicitudConDatosCompletos() {
-            // Given - Solicitud con todos los datos requeridos
+            // Given
             Solicitud solicitud = crearSolicitudValida();
-            Solicitud solicitudGuardada = crearSolicitudGuardada(solicitud);
 
-            // Solo configurar mocks que se van a usar
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenReturn(Mono.just(solicitudGuardada));
+            // Usar helper method para todos los mocks
+            setupMocksCompletos();
 
-            // Agregar mocks para validaciones externas que se ejecutan en el UseCase
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
-            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
-                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
-
-            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
-            when(notificationGateway.notificarSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-
-            // When & Then - Usar StepVerifier para testear flujo reactivo
+            // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
                     .expectNextMatches(resultado -> {
                         assertThat(resultado.getNumeroDocumento()).isEqualTo("12345678");
@@ -105,14 +87,9 @@ class CrearSolicitudUseCaseTest {
         void debeAsignarEstadoPendienteRevision() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            Solicitud solicitudGuardada = crearSolicitudGuardada(solicitud);
-            solicitudGuardada.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
 
-            // Solo mocks necesarios para este test
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenReturn(Mono.just(solicitudGuardada));
+            // Usar helper method para todos los mocks
+            setupMocksCompletos();
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -130,13 +107,9 @@ class CrearSolicitudUseCaseTest {
             for (String tipoValido : tiposValidos) {
                 Solicitud solicitud = crearSolicitudValida();
                 solicitud.setTipoCredito(tipoValido);
-                Solicitud solicitudGuardada = crearSolicitudGuardada(solicitud);
 
-                // Mocks mínimos necesarios
-                when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                        .thenReturn(Mono.just(false));
-                when(solicitudRepository.guardar(any(Solicitud.class)))
-                        .thenReturn(Mono.just(solicitudGuardada));
+                // Usar helper method para todos los mocks
+                setupMocksCompletos();
 
                 // When & Then - No debe lanzar excepción
                 StepVerifier.create(useCase.ejecutar(solicitud))
@@ -151,6 +124,10 @@ class CrearSolicitudUseCaseTest {
             // Given - Tipo inválido
             Solicitud solicitud = crearSolicitudValida();
             solicitud.setTipoCredito("TIPO_INVALIDO");
+
+            // AGREGAR MOCKS BÁSICOS para que el flujo llegue hasta la validación
+            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
+                    .thenReturn(Mono.just(false));
 
             // When & Then - Debe fallar inmediatamente en validación
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -169,19 +146,12 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
-            // Mocks específicos para este escenario
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(true, 450))); // Constructor simplificado: (tieneReportes, puntaje)
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+            // Usar helper method base y sobrescribir específico
+            setupMocksCompletos();
 
-            // Agregar mocks faltantes para todas las validaciones externas
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
-            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
-                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
+            // Sobrescribir solo el mock específico para historial negativo
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new HistorialCrediticio(true, 450))); // historial negativo
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -198,25 +168,12 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
-            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
+            // Usar helper method base y sobrescribir específico
+            setupMocksCompletos();
+
+            // Sobrescribir solo el mock específico para validación financiera fallida
             when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
                     .thenReturn(Mono.just(new ValidacionFinanciera(false, BigDecimal.ZERO, "ERROR", "Datos inconsistentes")));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
-
-            // Agregar mocks faltantes
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
-
-            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
-            when(notificationGateway.notificarSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -237,16 +194,9 @@ class CrearSolicitudUseCaseTest {
         void debeNotificarYPublicarEventos() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            Solicitud solicitudGuardada = crearSolicitudGuardada(solicitud);
 
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenReturn(Mono.just(solicitudGuardada));
-            when(notificationGateway.notificarSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
+            // Usar helper method para todos los mocks
+            setupMocksCompletos();
 
             // When
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -263,16 +213,13 @@ class CrearSolicitudUseCaseTest {
         void debeManejarFallosEnNotificaciones() {
             // Given
             Solicitud solicitud = crearSolicitudValida();
-            Solicitud solicitudGuardada = crearSolicitudGuardada(solicitud);
 
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenReturn(Mono.just(solicitudGuardada));
+            // Usar helper method base y sobrescribir específico
+            setupMocksCompletos();
+
+            // Sobrescribir solo el mock de notificación para que falle
             when(notificationGateway.notificarSolicitudCreada(any()))
                     .thenReturn(Mono.error(new RuntimeException("Error en notificación")));
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
 
             // When & Then - El flujo debe continuar aunque falle la notificación
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -292,25 +239,8 @@ class CrearSolicitudUseCaseTest {
             Solicitud solicitud = crearSolicitudValida();
             solicitud.setMontoSolicitado(new BigDecimal("50000000")); // 50M límite superior
 
-            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
-
-            // Mocks para validaciones externas
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
-            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
-                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
-
-            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
-            when(notificationGateway.notificarSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
+            // Usar helper method para todos los mocks
+            setupMocksCompletos();
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -326,25 +256,8 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
-            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
-            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
-                    .thenReturn(Mono.just(false));
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
-
-            // Mocks para validaciones externas
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
-            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
-                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
-
-            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
-            when(notificationGateway.notificarSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
-            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
-                    .thenReturn(Mono.empty());
+            // Usar helper method para todos los mocks
+            setupMocksCompletos();
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -364,7 +277,7 @@ class CrearSolicitudUseCaseTest {
         solicitud.setTelefono("3001234567");
         solicitud.setEmail("juan.garcia@email.com");
         solicitud.setIngresosMensuales(new BigDecimal("3000000"));
-        solicitud.setGastosMensuales(new BigDecimal("1500000")); // Usa tu campo existente
+        solicitud.setGastosMensuales(new BigDecimal("1500000"));
         solicitud.setMontoSolicitado(new BigDecimal("5000000"));
         solicitud.setPlazoMeses(24);
         solicitud.setTipoCredito("PERSONAL");
@@ -372,7 +285,6 @@ class CrearSolicitudUseCaseTest {
     }
 
     private Solicitud crearSolicitudGuardada(Solicitud original) {
-        // Tu constructor ya asigna ID y estado automáticamente
         Solicitud guardada = new Solicitud();
         guardada.setId("SOL-" + System.currentTimeMillis());
         guardada.setNumeroDocumento(original.getNumeroDocumento());
@@ -388,5 +300,23 @@ class CrearSolicitudUseCaseTest {
         guardada.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
         guardada.setFechaCreacion(LocalDateTime.now());
         return guardada;
+    }
+
+    // HELPER METHOD PARA CONFIGURAR TODOS LOS MOCKS NECESARIOS
+    private void setupMocksCompletos() {
+        when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
+                .thenReturn(Mono.just(false));
+        when(validacionExternaGateway.validarDocumento(anyString()))
+                .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+        when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
+        when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
+        when(solicitudRepository.guardar(any(Solicitud.class)))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+        when(notificationGateway.notificarSolicitudCreada(any()))
+                .thenReturn(Mono.empty());
+        when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                .thenReturn(Mono.empty());
     }
 }
