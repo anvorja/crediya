@@ -9,6 +9,7 @@ import com.crediya.solicitudes.model.solicitud.gateways.NotificationGateway;
 import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
 import com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio;
+import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento;
 import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionFinanciera;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +70,20 @@ class CrearSolicitudUseCaseTest {
                     .thenReturn(Mono.just(false));
             when(solicitudRepository.guardar(any(Solicitud.class)))
                     .thenReturn(Mono.just(solicitudGuardada));
+
+            // Agregar mocks para validaciones externas que se ejecutan en el UseCase
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
+            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
+
+            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
+            when(notificationGateway.notificarSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
 
             // When & Then - Usar StepVerifier para testear flujo reactivo
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -158,9 +173,15 @@ class CrearSolicitudUseCaseTest {
             when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
                     .thenReturn(Mono.just(false));
             when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Mono.just(new HistorialCrediticio(true, 450))); // Score bajo
+                    .thenReturn(Mono.just(new HistorialCrediticio(true, 450))); // Constructor simplificado: (tieneReportes, puntaje)
             when(solicitudRepository.guardar(any(Solicitud.class)))
                     .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            // Agregar mocks faltantes para todas las validaciones externas
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -177,12 +198,25 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
+            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
             when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
                     .thenReturn(Mono.just(false));
             when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
                     .thenReturn(Mono.just(new ValidacionFinanciera(false, BigDecimal.ZERO, "ERROR", "Datos inconsistentes")));
             when(solicitudRepository.guardar(any(Solicitud.class)))
                     .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            // Agregar mocks faltantes
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
+
+            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
+            when(notificationGateway.notificarSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -258,10 +292,25 @@ class CrearSolicitudUseCaseTest {
             Solicitud solicitud = crearSolicitudValida();
             solicitud.setMontoSolicitado(new BigDecimal("50000000")); // 50M límite superior
 
+            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
             when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
                     .thenReturn(Mono.just(false));
             when(solicitudRepository.guardar(any(Solicitud.class)))
                     .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            // Mocks para validaciones externas
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
+            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
+
+            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
+            when(notificationGateway.notificarSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))
@@ -277,11 +326,25 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
-            // Mocks mínimos sin validaciones externas
+            // CONFIGURAR TODOS LOS MOCKS NECESARIOS
             when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
                     .thenReturn(Mono.just(false));
             when(solicitudRepository.guardar(any(Solicitud.class)))
                     .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+            // Mocks para validaciones externas
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new ValidacionDocumento(true, "Juan", "Pérez")));
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new HistorialCrediticio(false, 650)));
+            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                    .thenReturn(Mono.just(new ValidacionFinanciera(true, new BigDecimal("3000000"), "MOCK", "OK")));
+
+            // MOCKS PARA NOTIFICACIONES (FALTABAN ESTOS!)
+            when(notificationGateway.notificarSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
 
             // When & Then
             StepVerifier.create(useCase.ejecutar(solicitud))

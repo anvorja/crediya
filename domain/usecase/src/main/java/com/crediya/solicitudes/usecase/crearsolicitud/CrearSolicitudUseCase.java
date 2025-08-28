@@ -10,7 +10,6 @@ import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
 import reactor.core.publisher.Mono;
 
-
 /**
  * Use Case para crear solicitudes de préstamo
  * Implementa validaciones de negocio y flujo reactivo completo
@@ -34,7 +33,7 @@ public class CrearSolicitudUseCase {
     }
 
     /**
-     * Ejecuta la creación de solicitud - COMPLETAMENTE REACTIVO
+     * Ejecuta la creación de solicitud
      * @param solicitud la solicitud a crear
      * @return Mono<Solicitud> con la solicitud creada
      */
@@ -53,33 +52,20 @@ public class CrearSolicitudUseCase {
                                     return Mono.empty();
                                 })
                                 .thenReturn(solicitudGuardada)
-                )
-                .onErrorMap(IllegalArgumentException.class, ex ->
-                        new DatosSolicitudInvalidosException("Datos inválidos: " + ex.getMessage()))
-                .onErrorMap(Exception.class, ex -> {
-                    if (ex instanceof DatosSolicitudInvalidosException ||
-                            ex instanceof SolicitudDuplicadaException) {
-                        return ex;
-                    }
-                    return new DatosSolicitudInvalidosException("Error procesando solicitud: " + ex.getMessage());
-                });
+                );
     }
 
     /**
-     * Valida datos básicos de la solicitud - USA TU MODELO EXISTENTE
+     * Valida datos básicos de la solicitud
      */
     private Mono<Void> validarDatosBasicos(Solicitud solicitud) {
         return Mono.fromRunnable(() -> {
             if (solicitud == null) {
-                throw new IllegalArgumentException("Solicitud no puede ser nula");
+                throw new DatosSolicitudInvalidosException("Solicitud no puede ser nula");
             }
 
-            try {
-                // Usar tu método de validación existente que ya incluye CA-3
-                solicitud.validarDatos();
-            } catch (DatosSolicitudInvalidosException e) {
-                throw new IllegalArgumentException(e.getMessage());
-            }
+            // Usar tu método de validación existente que ya incluye CA-3
+            solicitud.validarDatos();
         });
     }
 
@@ -97,6 +83,9 @@ public class CrearSolicitudUseCase {
                 });
     }
 
+    /**
+     * Enriquece la solicitud con validaciones externas
+     */
     private Mono<Solicitud> enriquecerConValidacionesExternas(Solicitud solicitud) {
         return Mono.just(solicitud)
                 .flatMap(this::validarDocumento)
@@ -113,7 +102,7 @@ public class CrearSolicitudUseCase {
     private Mono<Solicitud> validarDocumento(Solicitud solicitud) {
         return validacionExternaGateway.validarDocumento(solicitud.getNumeroDocumento())
                 .map(validacion -> {
-                    if (!validacion.esValido()) {
+                    if (!validacion.esValido()) { // CORRECTO: usar esValido()
                         String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
                         solicitud.setObservaciones(obsActual + "Documento no válido según fuentes externas; ");
                     }
@@ -125,12 +114,12 @@ public class CrearSolicitudUseCase {
     private Mono<Solicitud> consultarHistorialCrediticio(Solicitud solicitud) {
         return validacionExternaGateway.consultarHistorialCrediticio(solicitud.getNumeroDocumento())
                 .map(historial -> {
-                    if (historial.tieneReportesNegativos()) { // CORRECTO: usar tieneReportesNegativos()
+                    if (historial.tieneReportesNegativos()) {
                         // Usar tu método setObservaciones existente
                         String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
                         solicitud.setObservaciones(obsActual + "Historial crediticio negativo detectado; ");
                     }
-                    if (historial.puntajeCrediticio() < 500) { // CORRECTO: usar puntajeCrediticio()
+                    if (historial.puntajeCrediticio() < 500) {
                         String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
                         solicitud.setObservaciones(obsActual + "Score crediticio bajo: " + historial.puntajeCrediticio() + "; ");
                     }
