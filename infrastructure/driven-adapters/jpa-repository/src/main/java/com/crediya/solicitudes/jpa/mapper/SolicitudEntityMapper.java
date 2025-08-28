@@ -19,18 +19,21 @@ public interface SolicitudEntityMapper {
 
     /**
      * Convierte de entidad del dominio a entidad JPA
+     * MapStruct mapea automáticamente los campos con el mismo nombre
      */
     @Mapping(source = "estado", target = "estado")
     SolicitudEntity toEntity(Solicitud solicitud);
 
     /**
      * Convierte de entidad JPA a entidad del dominio
+     * MapStruct mapea automáticamente los campos con el mismo nombre
      */
     @Mapping(source = "estado", target = "estado")
     Solicitud toDomain(SolicitudEntity entity);
 
     /**
-     * Mapeo de estados del dominio a JPA - SIN PRE_APROBADA
+     * Mapeo explícito de estados del dominio a JPA
+     * Garantiza que los enums estén perfectamente sincronizados
      */
     @ValueMapping(source = "PENDIENTE_REVISION", target = "PENDIENTE_REVISION")
     @ValueMapping(source = "EN_REVISION", target = "EN_REVISION")
@@ -39,11 +42,40 @@ public interface SolicitudEntityMapper {
     SolicitudEntity.EstadoSolicitudEntity mapEstadoToEntity(EstadoSolicitud estado);
 
     /**
-     * Mapeo de estados de JPA a dominio - SIN PRE_APROBADA
+     * Mapeo explícito de estados de JPA a dominio
+     * Garantiza que los enums estén perfectamente sincronizados
      */
     @ValueMapping(source = "PENDIENTE_REVISION", target = "PENDIENTE_REVISION")
     @ValueMapping(source = "EN_REVISION", target = "EN_REVISION")
     @ValueMapping(source = "APROBADA", target = "APROBADA")
     @ValueMapping(source = "RECHAZADA", target = "RECHAZADA")
     EstadoSolicitud mapEstadoToDomain(SolicitudEntity.EstadoSolicitudEntity estado);
+
+    /**
+     * Método de conveniencia para mapear listas de entidades JPA a dominio
+     * Útil para operaciones de consulta masiva
+     */
+    default java.util.List<Solicitud> toDomainList(java.util.List<SolicitudEntity> entities) {
+        if (entities == null) {
+            return null;
+        }
+
+        return entities.stream()
+                .map(this::toDomain)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Método de conveniencia para mapear listas de entidades de dominio a JPA
+     * Útil para operaciones de guardado masivo
+     */
+    default java.util.List<SolicitudEntity> toEntityList(java.util.List<Solicitud> solicitudes) {
+        if (solicitudes == null) {
+            return null;
+        }
+
+        return solicitudes.stream()
+                .map(this::toEntity)
+                .collect(java.util.stream.Collectors.toList());
+    }
 }

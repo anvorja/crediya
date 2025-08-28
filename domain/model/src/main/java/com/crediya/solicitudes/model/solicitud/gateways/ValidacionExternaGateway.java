@@ -3,39 +3,67 @@ package com.crediya.solicitudes.model.solicitud.gateways;
 
 import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento;
 import com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio;
+import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionFinanciera;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 /**
- * Gateway para validaciones externas
+ * Gateway para validaciones externas con entidades gubernamentales,
+ * centrales de riesgo y sistemas financieros
  */
 public interface ValidacionExternaGateway {
 
     /**
-     * Valida un documento de identidad
-     * @param numeroDocumento el número de documento
-     * @return resultado de la validación si está disponible
+     * Valida un documento de identidad contra registros oficiales
+     * (RENAPO, Registraduría Civil, RENIEC, etc.)
+     *
+     * @param numeroDocumento el número de documento a validar
+     * @return resultado de la validación con datos oficiales
      */
     Optional<ValidacionDocumento> validarDocumento(String numeroDocumento);
 
     /**
-     * Consulta el historial crediticio de una persona
-     * @param numeroDocumento el número de documento
-     * @return historial crediticio si está disponible
+     * Consulta el historial crediticio en centrales de riesgo
+     * (TransUnion, Experian, DataCrédito, CIFIN, Buró de Crédito, etc.)
+     *
+     * @param numeroDocumento el número de documento del cliente
+     * @return historial crediticio completo si está disponible
      */
     Optional<HistorialCrediticio> consultarHistorialCrediticio(String numeroDocumento);
 
     /**
-     * Verifica si una persona está en listas restrictivas
-     * @param numeroDocumento el número de documento
-     * @return true si está en listas restrictivas
+     * Valida información financiera contra fuentes oficiales
+     * (DIAN, SAT, SUNAT, PILA, sistemas tributarios, etc.)
+     *
+     * @param numeroDocumento el número de documento del cliente
+     * @param ingresosDeclarados ingresos declarados por el cliente
+     * @return validación financiera con ingresos verificados
      */
-    boolean verificarListasRestrictivas(String numeroDocumento);
+    Optional<ValidacionFinanciera> validarInformacionFinanciera(String numeroDocumento,
+                                                                BigDecimal ingresosDeclarados);
 
     /**
-     * Consulta ingresos declarados en fuentes externas
-     * @param numeroDocumento el número de documento
-     * @return ingresos declarados, si están disponibles
+     * Verifica si una persona está en listas restrictivas
+     * (OFAC, listas de lavado de activos, etc.)
+     *
+     * @param numeroDocumento el número de documento a verificar
+     * @return true si está en listas restrictivas
      */
-    Optional<java.math.BigDecimal> consultarIngresosDeclarados(String numeroDocumento);
+    default boolean verificarListasRestrictivas(String numeroDocumento) {
+        // Implementación por defecto - los adapters pueden sobrescribirla
+        return false;
+    }
+
+    /**
+     * Consulta ingresos reportados en fuentes externas
+     * (sistemas de nómina, declaraciones tributarias, etc.)
+     *
+     * @param numeroDocumento el número de documento del cliente
+     * @return ingresos oficiales reportados, si están disponibles
+     */
+    default Optional<BigDecimal> consultarIngresosDeclarados(String numeroDocumento) {
+        // Implementación por defecto - los adapters pueden sobrescribirla
+        return Optional.empty();
+    }
 }

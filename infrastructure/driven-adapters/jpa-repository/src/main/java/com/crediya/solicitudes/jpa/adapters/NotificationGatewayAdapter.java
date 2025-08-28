@@ -1,6 +1,7 @@
 package com.crediya.solicitudes.jpa.adapters;
 
 import com.crediya.solicitudes.model.solicitud.Solicitud;
+import com.crediya.solicitudes.model.solicitud.enums.TipoNotificacion;
 import com.crediya.solicitudes.model.solicitud.gateways.NotificationGateway;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,33 @@ import org.springframework.stereotype.Component;
 public class NotificationGatewayAdapter implements NotificationGateway {
 
     @Override
+    public void notificarSolicitudCreada(Solicitud solicitud) {
+        try {
+            log.info("🆕 NUEVA SOLICITUD CREADA:");
+            log.info("   • ID: {}", solicitud.getId());
+            log.info("   • Cliente: {} ({})",
+                    solicitud.getNombreCompleto(), solicitud.getNumeroDocumento());
+            log.info("   • Email: {}", solicitud.getEmail());
+            log.info("   • Teléfono: {}", solicitud.getTelefono());
+            log.info("   • Monto: ${:,.2f}", solicitud.getMontoSolicitado());
+            log.info("   • Tipo: {}", solicitud.getTipoCredito());
+            log.info("   • Estado: {}", solicitud.getEstado().getDescripcion());
+
+            // Enviar notificación por todos los canales para nueva solicitud
+            notificarEstadoSolicitud(solicitud, TipoNotificacion.TODOS);
+            notificarNuevaSolicitudAAdministradores(solicitud);
+
+        } catch (Exception e) {
+            log.error("Error notificando nueva solicitud {}: {}",
+                    solicitud.getId(), e.getMessage());
+        }
+    }
+
+    @Override
     public boolean notificarEstadoSolicitud(Solicitud solicitud, TipoNotificacion tipo) {
         try {
-            // SIMULACIÓN - En un proyecto real aquí iría la integración real
             log.info("📧 NOTIFICACIÓN ENVIADA:");
-            log.info("   • Tipo: {}", tipo);
+            log.info("   • Tipo: {}", tipo.getDescripcion());
             log.info("   • Destinatario: {} ({})",
                     solicitud.getNombreCompleto(), solicitud.getEmail());
             log.info("   • Solicitud: {} - Estado: {}",
@@ -77,7 +100,7 @@ public class NotificationGatewayAdapter implements NotificationGateway {
     @Override
     public boolean notificarSolicitudRequiereRevision(Solicitud solicitud) {
         try {
-            log.info("⚠️  NOTIFICACIÓN DE REVISIÓN REQUERIDA:");
+            log.info("⚠️ NOTIFICACIÓN DE REVISIÓN REQUERIDA:");
             log.info("   • Solicitud: {} requiere revisión manual", solicitud.getId());
             log.info("   • Cliente: {}", solicitud.getNombreCompleto());
             log.info("   • Razón: {}", solicitud.getObservaciones());
@@ -101,19 +124,16 @@ public class NotificationGatewayAdapter implements NotificationGateway {
     // ============================================================
 
     private boolean enviarEmail(Solicitud solicitud) {
-        // En un proyecto real: integración con AWS SES, SendGrid, etc.
-        log.debug("   ✉️  Email enviado a: {}", solicitud.getEmail());
+        log.debug("   ✉️ Email enviado a: {}", solicitud.getEmail());
         return true;
     }
 
     private boolean enviarSms(Solicitud solicitud) {
-        // En un proyecto real: integración con AWS SNS, Twilio, etc.
         log.debug("   📱 SMS enviado a: {}", solicitud.getTelefono());
         return true;
     }
 
     private boolean enviarPushNotification(Solicitud solicitud) {
-        // En un proyecto real: integración con Firebase, AWS SNS Mobile Push, etc.
         log.debug("   🔔 Push notification enviada");
         return true;
     }

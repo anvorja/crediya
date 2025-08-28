@@ -17,9 +17,15 @@ import java.util.Optional;
 public interface SolicitudRepository extends JpaRepository<SolicitudEntity, String> {
 
     /**
-     * Busca solicitud por número de documento
+     * Busca la solicitud más reciente por número de documento
      */
     Optional<SolicitudEntity> findByNumeroDocumento(String numeroDocumento);
+
+    /**
+     * Busca TODAS las solicitudes por número de documento (historial completo)
+     * Ordenadas por fecha de creación descendente
+     */
+    List<SolicitudEntity> findAllByNumeroDocumentoOrderByFechaCreacionDesc(String numeroDocumento);
 
     /**
      * Lista solicitudes por estado
@@ -27,10 +33,12 @@ public interface SolicitudRepository extends JpaRepository<SolicitudEntity, Stri
     List<SolicitudEntity> findByEstado(SolicitudEntity.EstadoSolicitudEntity estado);
 
     /**
-     * Verifica si existe una solicitud activa (no rechazada ni aprobada) por documento
+     * Verifica si existe una solicitud activa (no final) por documento
+     * Estados activos: PENDIENTE_REVISION, EN_REVISION
+     * Estados finales: APROBADA, RECHAZADA
      */
     @Query("SELECT COUNT(s) > 0 FROM SolicitudEntity s WHERE s.numeroDocumento = :numeroDocumento " +
-            "AND s.estado IN ('PENDIENTE_REVISION', 'PRE_APROBADA')")
+            "AND s.estado IN ('PENDIENTE_REVISION', 'EN_REVISION')")
     boolean existsSolicitudActivaByNumeroDocumento(@Param("numeroDocumento") String numeroDocumento);
 
     /**

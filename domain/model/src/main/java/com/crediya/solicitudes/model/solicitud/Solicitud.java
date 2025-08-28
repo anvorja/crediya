@@ -162,16 +162,10 @@ public class Solicitud {
             throw new DatosSolicitudInvalidosException("El tipo de crédito es obligatorio");
         }
 
-        Set<String> tiposPermitidos = Set.of(
-                BusinessConstants.TipoCredito.PERSONAL,
-                BusinessConstants.TipoCredito.VEHICULO,
-                BusinessConstants.TipoCredito.VIVIENDA,
-                BusinessConstants.TipoCredito.EDUCATIVO
-        );
-
-        if (!tiposPermitidos.contains(tipoCredito.toUpperCase())) {
+        if (!BusinessConstants.TipoCredito.TIPOS_VALIDOS.contains(tipoCredito.toUpperCase())) {
             throw new DatosSolicitudInvalidosException(
-                    "Tipo de crédito no válido. Tipos permitidos: " + String.join(", ", tiposPermitidos)
+                    "Tipo de crédito no válido: " + tipoCredito +
+                            ". Tipos permitidos: " + String.join(", ", BusinessConstants.TipoCredito.TIPOS_VALIDOS)
             );
         }
     }

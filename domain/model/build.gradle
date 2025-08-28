@@ -5,8 +5,10 @@ description = 'Domain Model - Entidades y Gateways puros'
 dependencies {
 
     // Testing básico sin dependencias externas
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
-    testImplementation 'org.assertj:assertj-core:3.26.3'
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.assertj:assertj-core:3.24.2'
+    testImplementation platform('org.mockito:mockito-bom:5.8.0')
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
 
@@ -14,4 +16,9 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    systemProperty 'junit.jupiter.execution.parallel.enabled', false
+    jvmArgs = [
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+    ]
 }

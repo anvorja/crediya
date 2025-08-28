@@ -31,14 +31,13 @@ public class Handler {
      * Handler para crear solicitud de préstamo
      */
     public Mono<ServerResponse> crearSolicitud(ServerRequest request) {
-        log.info("🚀 Handler - Procesando creación de solicitud");
+        log.info("Handler - Procesando creación de solicitud");
 
         return request.bodyToMono(CrearSolicitudRequest.class)
                 .flatMap(this::procesarSolicitud)
-                .flatMap(response -> ServerResponse.ok()
+                .flatMap(response -> ServerResponse.status(201) // HTTP 201 Created
                         .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
-                .onErrorResume(this::handleError);
+                        .bodyValue(response));
     }
 
     /**
@@ -78,45 +77,23 @@ public class Handler {
      */
     private Mono<SolicitudResponse> procesarSolicitud(CrearSolicitudRequest request) {
         return Mono.fromCallable(() -> {
-            try {
-                log.info("📋 Procesando solicitud para documento: {}", request.getNumeroDocumento());
+            log.info("Procesando solicitud para documento: {}", request.getNumeroDocumento());
 
-                // 1. Mapear DTO → Entidad de Dominio
-                Solicitud solicitudDominio = mapper.toModel(request);
+            // 1. Mapear DTO → Entidad de Dominio
+            Solicitud solicitudDominio = mapper.toModel(request);
 
-                // 2. Ejecutar Caso de Uso PURO (síncrono - sin Reactor)
-                Solicitud solicitudCreada = crearSolicitudUseCase.ejecutar(solicitudDominio);
+            // 2. Ejecutar Caso de Uso PURO (síncrono - sin Reactor)
+            Solicitud solicitudCreada = crearSolicitudUseCase.ejecutar(solicitudDominio);
 
-                // 3. Mapear Entidad de Dominio → DTO Response
-                SolicitudResponse response = mapper.toResponse(solicitudCreada);
+            // 3. Mapear Entidad de Dominio → DTO Response
+            SolicitudResponse response = mapper.toResponse(solicitudCreada);
 
-                log.info("✅ Solicitud creada exitosamente: {} - Estado: {}",
-                        solicitudCreada.getId(), solicitudCreada.getEstado());
+            log.info("Solicitud creada exitosamente: {} - Estado: {}",
+                    solicitudCreada.getId(), solicitudCreada.getEstado());
 
-                return response;
+            return response;
 
-            } catch (Exception e) {
-                log.error("❌ Error en Handler creando solicitud: {}", e.getMessage());
-                throw new RuntimeException("Error procesando solicitud", e);
-            }
+            // NO ENVOLVER EN RuntimeException - dejar que las excepciones del dominio se propaguen
         });
-    }
-
-    /**
-     * Manejo de errores para Router Functions
-     */
-    private Mono<ServerResponse> handleError(Throwable error) {
-        log.error("🚨 Error en Handler: {}", error.getMessage(), error);
-
-        // Crear respuesta de error simple
-        String errorResponse = String.format(
-                "{ \"error\": \"Error interno\", \"message\": \"%s\", \"timestamp\": \"%s\" }",
-                error.getMessage(),
-                java.time.LocalDateTime.now()
-        );
-
-        return ServerResponse.status(500)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(errorResponse);
     }
 }

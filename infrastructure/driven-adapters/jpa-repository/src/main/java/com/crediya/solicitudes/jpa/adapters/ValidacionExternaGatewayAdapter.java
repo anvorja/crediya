@@ -1,6 +1,10 @@
+// infrastructure/driven-adapters/jpa-repository/src/main/java/com/crediya/solicitudes/jpa/adapters/ValidacionExternaGatewayAdapter.java
 package com.crediya.solicitudes.jpa.adapters;
 
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
+import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento;
+import com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio;
+import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionFinanciera;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -10,7 +14,7 @@ import java.util.Random;
 
 /**
  * Implementación mock del gateway de validaciones externas
- * En un proyecto real, aquí se integraría con:
+ * Aquí se integraría con:
  * - Bases de datos gubernamentales (RENAPO, CURP, Registraduría Civil)
  * - Centrales de riesgo (TransUnion, Experian, DataCrédito, CIFIN)
  * - Sistemas de consulta financiera (DIAN, PILA, bancos)
@@ -55,7 +59,7 @@ public class ValidacionExternaGatewayAdapter implements ValidacionExternaGateway
                         "García López",
                         "Documento válido - verificar nombres declarados"
                 );
-                log.warn("   ⚠️  Documento válido con posibles discrepancias en nombres");
+                log.warn("   ⚠️ Documento válido con posibles discrepancias en nombres");
                 return Optional.of(resultado);
 
             } else if (numeroDocumento.endsWith("111")) {
@@ -115,7 +119,7 @@ public class ValidacionExternaGatewayAdapter implements ValidacionExternaGateway
                     observaciones
             );
 
-            log.info("   📈 Score crediticio: {}/850 ({})", score, clasificarScore(score));
+            log.info("   📈 Score crediticio: {}/850 ({})", score, historial.getClasificacion().getDescripcion());
             log.info("   📋 Reportes negativos: {}", reportesNegativos ? "SÍ" : "NO");
             log.info("   💳 Créditos activos: {}", cantidadCreditos);
             log.info("   💰 Deuda total: ${:,.2f}", totalDeudas);
@@ -176,13 +180,73 @@ public class ValidacionExternaGatewayAdapter implements ValidacionExternaGateway
                     ingresosVerificados ? "✅" : "❌",
                     ingresosVerificados ? "EXITOSA" : "SIN DATOS");
             log.info("   💵 Ingresos comprobados: ${:,.2f}", ingresosProbados);
-            log.info("   🏛️  Fuente: {}", fuenteValidacion);
+            log.info("   🏛️ Fuente: {}", fuenteValidacion);
             log.info("   📋 Resultado: {}", observaciones);
 
             return Optional.of(validacion);
 
         } catch (Exception e) {
             log.error("Error validando información financiera para {}: {}",
+                    numeroDocumento, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public boolean verificarListasRestrictivas(String numeroDocumento) {
+        try {
+            log.info("⚠️ VERIFICACIÓN LISTAS RESTRICTIVAS: {}", numeroDocumento);
+
+            // SIMULACIÓN - En un proyecto real aquí se consultaría:
+            // - OFAC (Office of Foreign Assets Control)
+            // - Listas de lavado de activos y financiación del terrorismo
+            // - Listas locales de personas reportadas
+
+            // Simulamos que el 1% de personas están en listas restrictivas
+            boolean enListaRestrictiva = Math.abs(numeroDocumento.hashCode()) % 100 == 0;
+
+            if (enListaRestrictiva) {
+                log.warn("   🚫 ALERTA: Persona encontrada en listas restrictivas");
+            } else {
+                log.info("   ✅ No se encontró en listas restrictivas");
+            }
+
+            return enListaRestrictiva;
+
+        } catch (Exception e) {
+            log.error("Error verificando listas restrictivas para {}: {}",
+                    numeroDocumento, e.getMessage());
+            return false; // En caso de error, asumimos que no está en listas restrictivas
+        }
+    }
+
+    @Override
+    public Optional<BigDecimal> consultarIngresosDeclarados(String numeroDocumento) {
+        try {
+            log.info("💰 CONSULTA INGRESOS OFICIALES: {}", numeroDocumento);
+
+            // SIMULACIÓN - En un proyecto real aquí se consultaría:
+            // - Declaraciones de renta en sistemas tributarios
+            // - Reportes de nómina empresarial
+            // - Sistemas de seguridad social
+
+            // Simulamos que 60% de personas tienen ingresos reportados oficialmente
+            boolean tieneIngresosReportados = Math.abs(numeroDocumento.hashCode()) % 10 < 6;
+
+            if (tieneIngresosReportados) {
+                // Simulamos ingresos entre 1 y 10 millones
+                int baseIngresos = Math.abs(numeroDocumento.hashCode()) % 9000000 + 1000000;
+                BigDecimal ingresosOficiales = new BigDecimal(baseIngresos);
+
+                log.info("   💵 Ingresos oficiales encontrados: ${:,.2f}", ingresosOficiales);
+                return Optional.of(ingresosOficiales);
+            } else {
+                log.info("   ❌ No se encontraron ingresos oficiales reportados");
+                return Optional.empty();
+            }
+
+        } catch (Exception e) {
+            log.error("Error consultando ingresos oficiales para {}: {}",
                     numeroDocumento, e.getMessage());
             return Optional.empty();
         }
@@ -292,13 +356,5 @@ public class ValidacionExternaGatewayAdapter implements ValidacionExternaGateway
             return String.format("Variación normal en ingresos reportados vs oficiales (%.1f%%)",
                     Math.abs(1 - variacion) * 100);
         }
-    }
-
-    private String clasificarScore(int score) {
-        if (score >= 750) return "EXCELENTE";
-        if (score >= 650) return "BUENO";
-        if (score >= 550) return "REGULAR";
-        if (score >= 450) return "MALO";
-        return "MUY MALO";
     }
 }

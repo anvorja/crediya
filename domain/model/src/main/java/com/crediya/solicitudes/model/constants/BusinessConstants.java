@@ -56,6 +56,11 @@ public class BusinessConstants {
 
         // Regex para validación
         public static final String TIPOS_REGEX = "^(" + PERSONAL + "|" + VEHICULO + "|" + VIVIENDA + "|" + EDUCATIVO + ")$";
+
+        // AGREGAR ESTA LISTA:
+        public static final java.util.List<String> TIPOS_VALIDOS = java.util.List.of(
+                PERSONAL, VEHICULO, VIVIENDA, EDUCATIVO
+        );
     }
 
     // Estados de solicitud - SIN PRE_APROBADA
