@@ -1,4 +1,3 @@
-// applications/app-service/src/test/java/com/crediya/solicitudes/config/ObjectMapperConfigTest.java
 package com.crediya.solicitudes.config;
 
 import org.junit.jupiter.api.Test;

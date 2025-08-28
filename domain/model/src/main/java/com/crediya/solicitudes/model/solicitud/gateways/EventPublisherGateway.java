@@ -2,33 +2,38 @@
 package com.crediya.solicitudes.model.solicitud.gateways;
 
 import com.crediya.solicitudes.model.solicitud.Solicitud;
+import reactor.core.publisher.Mono;
 
 /**
- * Gateway para publicación de eventos
+ * Gateway REACTIVO para publicación de eventos
  */
 public interface EventPublisherGateway {
 
     /**
-     * Publica evento cuando se crea una solicitud
+     * Publica evento cuando se crea una solicitud de forma reactiva
      * @param solicitud la solicitud creada
+     * @return Mono<Void> que se completa cuando el evento es publicado
      */
-    void publicarEventoSolicitudCreada(Solicitud solicitud);
+    Mono<Void> publicarEventoSolicitudCreada(Solicitud solicitud);
 
     /**
-     * Publica evento cuando cambia el estado de una solicitud
+     * Publica evento cuando cambia el estado de una solicitud de forma reactiva
      * @param solicitud la solicitud actualizada
+     * @return Mono<Void> que se completa cuando el evento es publicado
      */
-    void publicarEventoCambioEstado(Solicitud solicitud);
+    Mono<Void> publicarEventoCambioEstado(Solicitud solicitud);
 
     /**
-     * Publica evento cuando una solicitud es aprobada
+     * Publica evento cuando una solicitud es aprobada de forma reactiva
      * @param solicitud la solicitud aprobada
+     * @return Mono<Void> que se completa cuando el evento es publicado
      */
-    void publicarEventoSolicitudAprobada(Solicitud solicitud);
+    Mono<Void> publicarEventoSolicitudAprobada(Solicitud solicitud);
 
     /**
-     * Publica evento cuando una solicitud es rechazada
+     * Publica evento cuando una solicitud es rechazada de forma reactiva
      * @param solicitud la solicitud rechazada
+     * @return Mono<Void> que se completa cuando el evento es publicado
      */
-    void publicarEventoSolicitudRechazada(Solicitud solicitud);
+    Mono<Void> publicarEventoSolicitudRechazada(Solicitud solicitud);
 }

@@ -4,66 +4,66 @@ package com.crediya.solicitudes.model.solicitud.gateways;
 import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento;
 import com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio;
 import com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionFinanciera;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 /**
- * Gateway para validaciones externas con entidades gubernamentales,
+ * Gateway REACTIVO para validaciones externas con entidades gubernamentales,
  * centrales de riesgo y sistemas financieros
  */
 public interface ValidacionExternaGateway {
 
     /**
-     * Valida un documento de identidad contra registros oficiales
+     * Valida un documento de identidad contra registros oficiales de forma reactiva
      * (RENAPO, Registraduría Civil, RENIEC, etc.)
      *
      * @param numeroDocumento el número de documento a validar
-     * @return resultado de la validación con datos oficiales
+     * @return Mono<ValidacionDocumento> con el resultado de la validación, Mono.empty() si no hay datos
      */
-    Optional<ValidacionDocumento> validarDocumento(String numeroDocumento);
+    Mono<ValidacionDocumento> validarDocumento(String numeroDocumento);
 
     /**
-     * Consulta el historial crediticio en centrales de riesgo
+     * Consulta el historial crediticio en centrales de riesgo de forma reactiva
      * (TransUnion, Experian, DataCrédito, CIFIN, Buró de Crédito, etc.)
      *
      * @param numeroDocumento el número de documento del cliente
-     * @return historial crediticio completo si está disponible
+     * @return Mono<HistorialCrediticio> con el historial crediticio completo, Mono.empty() si no está disponible
      */
-    Optional<HistorialCrediticio> consultarHistorialCrediticio(String numeroDocumento);
+    Mono<HistorialCrediticio> consultarHistorialCrediticio(String numeroDocumento);
 
     /**
-     * Valida información financiera contra fuentes oficiales
+     * Valida información financiera contra fuentes oficiales de forma reactiva
      * (DIAN, SAT, SUNAT, PILA, sistemas tributarios, etc.)
      *
      * @param numeroDocumento el número de documento del cliente
      * @param ingresosDeclarados ingresos declarados por el cliente
-     * @return validación financiera con ingresos verificados
+     * @return Mono<ValidacionFinanciera> con la validación financiera, Mono.empty() si no hay datos
      */
-    Optional<ValidacionFinanciera> validarInformacionFinanciera(String numeroDocumento,
-                                                                BigDecimal ingresosDeclarados);
+    Mono<ValidacionFinanciera> validarInformacionFinanciera(String numeroDocumento,
+                                                            BigDecimal ingresosDeclarados);
 
     /**
-     * Verifica si una persona está en listas restrictivas
+     * Verifica si una persona está en listas restrictivas de forma reactiva
      * (OFAC, listas de lavado de activos, etc.)
      *
      * @param numeroDocumento el número de documento a verificar
-     * @return true si está en listas restrictivas
+     * @return Mono<Boolean> true si está en listas restrictivas, false en caso contrario
      */
-    default boolean verificarListasRestrictivas(String numeroDocumento) {
+    default Mono<Boolean> verificarListasRestrictivas(String numeroDocumento) {
         // Implementación por defecto - los adapters pueden sobrescribirla
-        return false;
+        return Mono.just(false);
     }
 
     /**
-     * Consulta ingresos reportados en fuentes externas
+     * Consulta ingresos reportados en fuentes externas de forma reactiva
      * (sistemas de nómina, declaraciones tributarias, etc.)
      *
      * @param numeroDocumento el número de documento del cliente
-     * @return ingresos oficiales reportados, si están disponibles
+     * @return Mono<BigDecimal> con los ingresos oficiales reportados, Mono.empty() si no están disponibles
      */
-    default Optional<BigDecimal> consultarIngresosDeclarados(String numeroDocumento) {
+    default Mono<BigDecimal> consultarIngresosDeclarados(String numeroDocumento) {
         // Implementación por defecto - los adapters pueden sobrescribirla
-        return Optional.empty();
+        return Mono.empty();
     }
 }

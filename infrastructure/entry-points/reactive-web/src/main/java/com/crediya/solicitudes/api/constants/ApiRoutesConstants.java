@@ -27,6 +27,5 @@ public class ApiRoutesConstants {
         private Health() {}
 
         public static final String HEALTH = "/api/health";
-        public static final String ACTUATOR_HEALTH = "/actuator/health";
     }
 }

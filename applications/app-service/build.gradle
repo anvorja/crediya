@@ -2,12 +2,15 @@
 apply plugin: 'org.springframework.boot'
 
 dependencies {
+	implementation project(':r2dbc-postgresql')
 	implementation project(':reactive-web')
 	implementation 'org.reactivecommons.utils:object-mapper:0.1.0'
-	implementation project(':jpa-repository')
     implementation project(':model')
     implementation project(':usecase')
+
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+
     runtimeOnly('org.springframework.boot:spring-boot-devtools')
 
     // Testing
@@ -16,6 +19,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter'
     testImplementation 'com.tngtech.archunit:archunit:1.4.1'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
+    testImplementation 'io.projectreactor:reactor-test'
 }
 
 tasks.register('explodedJar', Copy) {

@@ -2,38 +2,42 @@
 package com.crediya.solicitudes.model.solicitud.gateways;
 
 import com.crediya.solicitudes.model.solicitud.Solicitud;
-import com.crediya.solicitudes.model.solicitud.enums.TipoNotificacion;
+import reactor.core.publisher.Mono;
 
 /**
- * Gateway para envío de notificaciones
+ * Gateway REACTIVO para envío de notificaciones
  */
 public interface NotificationGateway {
 
-    /**
-     * Notifica cuando se crea una nueva solicitud
-     * @param solicitud la solicitud creada
-     */
-    void notificarSolicitudCreada(Solicitud solicitud);
 
     /**
-     * Notifica cambio de estado con tipo específico
+     * Notifica cuando se crea una nueva solicitud de forma reactiva
+     * @param solicitud la solicitud creada
+     * @return Mono<Void> que se completa cuando la notificación es enviada
+     */
+    Mono<Void> notificarSolicitudCreada(Solicitud solicitud);
+
+    // ========================================
+    // MÉTODOS OPCIONALES PARA FUNCIONALIDADES FUTURAS
+    // ========================================
+
+    /**
+     * Notifica cambio de estado de forma reactiva
      * @param solicitud la solicitud actualizada
-     * @param tipo tipo de notificación a enviar
-     * @return true si se envió correctamente
+     * @return Mono<Void> que se completa cuando la notificación es enviada
      */
-    boolean notificarEstadoSolicitud(Solicitud solicitud, TipoNotificacion tipo);
+    default Mono<Void> notificarCambioEstado(Solicitud solicitud) {
+        // Implementación por defecto - los adapters pueden sobrescribirla
+        return Mono.empty();
+    }
 
     /**
-     * Notifica a administradores sobre nueva solicitud
-     * @param solicitud la solicitud creada
-     * @return true si se envió correctamente
-     */
-    boolean notificarNuevaSolicitudAAdministradores(Solicitud solicitud);
-
-    /**
-     * Notifica cuando una solicitud requiere revisión manual
+     * Notifica cuando una solicitud requiere revisión manual de forma reactiva
      * @param solicitud la solicitud que requiere revisión
-     * @return true si se envió correctamente
+     * @return Mono<Void> que se completa cuando la notificación es enviada
      */
-    boolean notificarSolicitudRequiereRevision(Solicitud solicitud);
+    default Mono<Void> notificarRevisionManual(Solicitud solicitud) {
+        // Implementación por defecto - los adapters pueden sobrescribirla
+        return Mono.empty();
+    }
 }

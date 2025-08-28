@@ -1,4 +1,3 @@
-// applications/app-service/src/main/java/com/crediya/solicitudes/config/ObjectMapperConfig.java
 package com.crediya.solicitudes.config;
 
 import org.reactivecommons.utils.ObjectMapper;
