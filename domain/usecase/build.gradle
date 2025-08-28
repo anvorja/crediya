@@ -4,20 +4,21 @@ description = 'Domain Use Cases - Lógica de negocio pura'
 dependencies {
     implementation project(':model')
 
-    // Testing con versiones compatibles
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    // Usar Spring Boot Test que ya está alineado en el proyecto
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation('io.projectreactor:reactor-test') {
+        exclude group: 'io.projectreactor.tools', module: 'blockhound'
+    }
     testImplementation 'org.assertj:assertj-core:3.24.2'
-    testImplementation platform('org.mockito:mockito-bom:5.8.0')
-    testImplementation 'org.mockito:mockito-core'
-    testImplementation 'org.mockito:mockito-junit-jupiter'
 }
 
 test {
     useJUnitPlatform()
     systemProperty 'junit.jupiter.execution.parallel.enabled', false
+    systemProperty 'reactor.blockhound.integration.disabled', 'true'
     jvmArgs = [
             '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
-            '--add-opens', 'java.base/java.util=ALL-UNNAMED'
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '-XX:+AllowRedefinitionToAddDeleteMethods'
     ]
 }

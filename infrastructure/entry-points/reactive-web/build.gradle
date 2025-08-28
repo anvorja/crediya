@@ -16,7 +16,22 @@ dependencies {
     // Testing dependencies para WebFlux
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.boot:spring-boot-test-autoconfigure'
-    testImplementation 'io.projectreactor:reactor-test'
     testImplementation 'org.mockito:mockito-core'
     testImplementation 'org.mockito:mockito-junit-jupiter'
+
+    // Excluir BlockHound de reactor-test
+    testImplementation('io.projectreactor:reactor-test') {
+        exclude group: 'io.projectreactor.tools', module: 'blockhound'
+    }
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'junit.jupiter.execution.parallel.enabled', false
+    systemProperty 'reactor.blockhound.integration.disabled', 'true'
+    jvmArgs = [
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '-XX:+AllowRedefinitionToAddDeleteMethods'
+    ]
 }

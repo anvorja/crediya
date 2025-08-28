@@ -1,7 +1,6 @@
 // domain/usecase/src/main/java/com/crediya/solicitudes/usecase/crearsolicitud/CrearSolicitudUseCase.java
 package com.crediya.solicitudes.usecase.crearsolicitud;
 
-import com.crediya.solicitudes.model.solicitud.EstadoSolicitud;
 import com.crediya.solicitudes.model.solicitud.Solicitud;
 import com.crediya.solicitudes.model.solicitud.exception.SolicitudDuplicadaException;
 import com.crediya.solicitudes.model.solicitud.exception.DatosSolicitudInvalidosException;
@@ -11,10 +10,14 @@ import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
 import reactor.core.publisher.Mono;
 
+
 /**
  * Use Case para crear solicitudes de préstamo
+ * Implementa validaciones de negocio y flujo reactivo completo
+ * Usa el modelo Solicitud existente SIN Lombok
  */
 public class CrearSolicitudUseCase {
+
     private final SolicitudRepository solicitudRepository;
     private final NotificationGateway notificationGateway;
     private final EventPublisherGateway eventPublisherGateway;
@@ -36,138 +39,147 @@ public class CrearSolicitudUseCase {
      * @return Mono<Solicitud> con la solicitud creada
      */
     public Mono<Solicitud> ejecutar(Solicitud solicitud) {
-        return validarSolicitudUnica(solicitud)
-                .then(validarDatosBasicos(solicitud))
+        return validarDatosBasicos(solicitud)
+                .then(validarSolicitudUnica(solicitud))
+                .then(Mono.just(solicitud))
                 .flatMap(this::enriquecerConValidacionesExternas)
                 .flatMap(this::evaluarYActualizarEstado)
                 .flatMap(solicitudRepository::guardar)
                 .flatMap(solicitudGuardada ->
                         notificarYPublicarEventos(solicitudGuardada)
+                                .onErrorResume(error -> {
+                                    // Log error pero no fallar el flujo principal
+                                    System.err.println("Error en notificaciones: " + error.getMessage());
+                                    return Mono.empty();
+                                })
                                 .thenReturn(solicitudGuardada)
                 )
-                // Manejo de errores reactivo
                 .onErrorMap(IllegalArgumentException.class, ex ->
                         new DatosSolicitudInvalidosException("Datos inválidos: " + ex.getMessage()))
                 .onErrorMap(Exception.class, ex -> {
-                    // Log del error aquí si fuera necesario
-                    return ex instanceof DatosSolicitudInvalidosException ||
-                            ex instanceof SolicitudDuplicadaException ? ex :
-                            new RuntimeException("Error interno procesando solicitud", ex);
+                    if (ex instanceof DatosSolicitudInvalidosException ||
+                            ex instanceof SolicitudDuplicadaException) {
+                        return ex;
+                    }
+                    return new DatosSolicitudInvalidosException("Error procesando solicitud: " + ex.getMessage());
                 });
     }
 
     /**
-     * Valida que no exista una solicitud activa para el documento
+     * Valida datos básicos de la solicitud - USA TU MODELO EXISTENTE
+     */
+    private Mono<Void> validarDatosBasicos(Solicitud solicitud) {
+        return Mono.fromRunnable(() -> {
+            if (solicitud == null) {
+                throw new IllegalArgumentException("Solicitud no puede ser nula");
+            }
+
+            try {
+                // Usar tu método de validación existente que ya incluye CA-3
+                solicitud.validarDatos();
+            } catch (DatosSolicitudInvalidosException e) {
+                throw new IllegalArgumentException(e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Valida que no exista una solicitud activa para el mismo documento
      */
     private Mono<Void> validarSolicitudUnica(Solicitud solicitud) {
         return solicitudRepository.existeSolicitudActivaPorDocumento(solicitud.getNumeroDocumento())
                 .flatMap(existe -> {
-                    if (existe) {
-                        return Mono.<Void>error(new SolicitudDuplicadaException(
-                                "Ya existe una solicitud activa para el documento: " +
-                                        solicitud.getNumeroDocumento()));
+                    if (Boolean.TRUE.equals(existe)) {
+                        return Mono.error(new SolicitudDuplicadaException(
+                                "Ya existe una solicitud activa para el documento: " + solicitud.getNumeroDocumento()));
                     }
                     return Mono.empty();
                 });
     }
 
-    /**
-     * Valida datos básicos de la solicitud de forma reactiva
-     */
-    private Mono<Solicitud> validarDatosBasicos(Solicitud solicitud) {
-        return Mono.fromCallable(() -> {
-            // Ejecutar validación síncrona del dominio dentro del contexto reactivo
-            solicitud.validarDatos();
-            return solicitud;
-        });
-    }
-
-    /**
-     * Enriquece la solicitud con validaciones externas de forma reactiva
-     */
     private Mono<Solicitud> enriquecerConValidacionesExternas(Solicitud solicitud) {
-        // Validar documento de forma reactiva
-        Mono<Void> validarDocumento = validacionExternaGateway.validarDocumento(solicitud.getNumeroDocumento())
-                .doOnNext(validacion -> {
-                    if (!validacion.esValido() ||
-                            !solicitud.getNombres().equalsIgnoreCase(validacion.nombre()) ||
-                            !solicitud.getApellidos().equalsIgnoreCase(validacion.apellido())) {
+        return Mono.just(solicitud)
+                .flatMap(this::validarDocumento)
+                .flatMap(this::consultarHistorialCrediticio)
+                .flatMap(this::validarInformacionFinanciera)
+                .onErrorResume(error -> {
+                    // En caso de error en validaciones externas, continuar con observaciones
+                    String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
+                    solicitud.setObservaciones(obsActual + "Error en validaciones externas: " + error.getMessage() + "; ");
+                    return Mono.just(solicitud);
+                });
+    }
 
-                        agregarObservacion(solicitud, "Datos del documento requieren verificación manual");
+    private Mono<Solicitud> validarDocumento(Solicitud solicitud) {
+        return validacionExternaGateway.validarDocumento(solicitud.getNumeroDocumento())
+                .map(validacion -> {
+                    if (!validacion.esValido()) {
+                        String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
+                        solicitud.setObservaciones(obsActual + "Documento no válido según fuentes externas; ");
                     }
+                    return solicitud;
                 })
-                .then()
-                .onErrorResume(ex -> Mono.empty()); // Continuar si falla la validación de documento
+                .onErrorReturn(solicitud);
+    }
 
-        // Consultar historial crediticio de forma reactiva
-        Mono<Void> consultarHistorial = validacionExternaGateway.consultarHistorialCrediticio(solicitud.getNumeroDocumento())
-                .doOnNext(historial -> {
-                    if (historial.tieneReportesNegativos() || historial.puntajeCrediticio() < 500) {
-                        agregarObservacion(solicitud,
-                                "Historial crediticio requiere revisión (Score: " +
-                                        historial.puntajeCrediticio() + ")");
+    private Mono<Solicitud> consultarHistorialCrediticio(Solicitud solicitud) {
+        return validacionExternaGateway.consultarHistorialCrediticio(solicitud.getNumeroDocumento())
+                .map(historial -> {
+                    if (historial.tieneReportesNegativos()) { // CORRECTO: usar tieneReportesNegativos()
+                        // Usar tu método setObservaciones existente
+                        String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
+                        solicitud.setObservaciones(obsActual + "Historial crediticio negativo detectado; ");
                     }
+                    if (historial.puntajeCrediticio() < 500) { // CORRECTO: usar puntajeCrediticio()
+                        String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
+                        solicitud.setObservaciones(obsActual + "Score crediticio bajo: " + historial.puntajeCrediticio() + "; ");
+                    }
+                    return solicitud;
                 })
-                .then()
-                .onErrorResume(ex -> Mono.empty()); // Continuar si falla la consulta de historial
+                .onErrorReturn(solicitud);
+    }
 
-        // Ejecutar ambas validaciones en paralelo y retornar la solicitud
-        return Mono.when(validarDocumento, consultarHistorial)
-                .thenReturn(solicitud);
+    private Mono<Solicitud> validarInformacionFinanciera(Solicitud solicitud) {
+        return validacionExternaGateway.validarInformacionFinanciera(
+                        solicitud.getNumeroDocumento(),
+                        solicitud.getIngresosMensuales())
+                .map(validacion -> {
+                    if (!validacion.ingresosVerificados()) {
+                        String obsActual = solicitud.getObservaciones() != null ? solicitud.getObservaciones() : "";
+                        solicitud.setObservaciones(obsActual + "Validación financiera falló: " + validacion.observaciones() + "; ");
+                    }
+                    return solicitud;
+                })
+                .onErrorReturn(solicitud);
     }
 
     /**
-     * Evalúa capacidad de pago y actualiza estado
+     * Evalúa la solicitud y actualiza su estado
      */
     private Mono<Solicitud> evaluarYActualizarEstado(Solicitud solicitud) {
         return Mono.fromCallable(() -> {
-            // Evaluar capacidad de pago automáticamente
-            boolean tieneCapacidadPago = solicitud.evaluarCapacidadPago();
-
-            if (!tieneCapacidadPago) {
-                solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
-                agregarObservacion(solicitud, "Requiere evaluación manual por capacidad de pago");
-            } else {
-                // HU2: "Se registra automáticamente con estado inicial Pendiente de revisión"
-                solicitud.setEstado(EstadoSolicitud.PENDIENTE_REVISION);
-            }
-
+            // CA-2: Usar tu método existente
+            solicitud.asignarEstadoInicial();
             return solicitud;
         });
     }
 
     /**
-     * Notifica y publica eventos de forma reactiva (non-blocking)
+     * Notifica y publica eventos de la solicitud creada
      */
-    private Mono<Void> notificarYPublicarEventos(Solicitud solicitudGuardada) {
-        // Ejecutar notificaciones en paralelo sin bloquear
-        Mono<Void> notificar = notificationGateway.notificarSolicitudCreada(solicitudGuardada)
-                .onErrorResume(ex -> {
-                    // Log warning pero no fallar el flujo principal
-                    // logger.warn("Error enviando notificación: {}", ex.getMessage());
+    private Mono<Void> notificarYPublicarEventos(Solicitud solicitud) {
+        Mono<Void> notificacion = notificationGateway.notificarSolicitudCreada(solicitud)
+                .onErrorResume(error -> {
+                    System.err.println("Error enviando notificación: " + error.getMessage());
                     return Mono.empty();
                 });
 
-        Mono<Void> publicarEvento = eventPublisherGateway.publicarEventoSolicitudCreada(solicitudGuardada)
-                .onErrorResume(ex -> {
-                    // Log warning pero no fallar el flujo principal
-                    // logger.warn("Error publicando evento: {}", ex.getMessage());
+        Mono<Void> evento = eventPublisherGateway.publicarEventoSolicitudCreada(solicitud)
+                .onErrorResume(error -> {
+                    System.err.println("Error publicando evento: " + error.getMessage());
                     return Mono.empty();
                 });
 
-        // Ejecutar ambas operaciones en paralelo
-        return Mono.when(notificar, publicarEvento);
-    }
-
-    /**
-     * Método auxiliar para agregar observaciones (mantiene lógica actual)
-     */
-    private void agregarObservacion(Solicitud solicitud, String nuevaObservacion) {
-        String observaciones = solicitud.getObservaciones();
-        if (observaciones == null || observaciones.trim().isEmpty()) {
-            solicitud.setObservaciones(nuevaObservacion);
-        } else {
-            solicitud.setObservaciones(observaciones + ". " + nuevaObservacion);
-        }
+        return Mono.when(notificacion, evento);
     }
 }

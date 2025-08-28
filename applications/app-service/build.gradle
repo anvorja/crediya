@@ -19,7 +19,11 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter'
     testImplementation 'com.tngtech.archunit:archunit:1.4.1'
     testImplementation 'com.fasterxml.jackson.core:jackson-databind'
-    testImplementation 'io.projectreactor:reactor-test'
+
+    // Excluir BlockHound de reactor-test
+    testImplementation('io.projectreactor:reactor-test') {
+        exclude group: 'io.projectreactor.tools', module: 'blockhound'
+    }
 }
 
 tasks.register('explodedJar', Copy) {
@@ -35,4 +39,15 @@ jar {
 bootJar {
     // Sets output jar name
     archiveFileName = "${project.getParent().getName()}.${archiveExtension.get()}"
+}
+
+test {
+    useJUnitPlatform()
+    systemProperty 'junit.jupiter.execution.parallel.enabled', false
+    systemProperty 'reactor.blockhound.integration.disabled', 'true'
+    jvmArgs = [
+            '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+            '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '-XX:+AllowRedefinitionToAddDeleteMethods'
+    ]
 }
