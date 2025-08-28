@@ -55,7 +55,7 @@ class CrearSolicitudUseCaseTest {
     }
 
     @Nested
-    @DisplayName("Criterios de Aceptación - Historia de Usuario")
+    @DisplayName("Criterios de Aceptación - Historia de Usuario 2")
     class CriteriosAceptacion {
 
         @Test
@@ -239,7 +239,6 @@ class CrearSolicitudUseCaseTest {
             Solicitud solicitud = crearSolicitudValida();
             solicitud.setMontoSolicitado(new BigDecimal("50000000")); // 50M límite superior
 
-            // Usar helper method para todos los mocks
             setupMocksCompletos();
 
             // When & Then
@@ -256,7 +255,6 @@ class CrearSolicitudUseCaseTest {
             // Given
             Solicitud solicitud = crearSolicitudValida();
 
-            // Usar helper method para todos los mocks
             setupMocksCompletos();
 
             // When & Then
@@ -268,7 +266,6 @@ class CrearSolicitudUseCaseTest {
         }
     }
 
-    // Métodos helper adaptados a tu modelo SIN LOMBOK
     private Solicitud crearSolicitudValida() {
         Solicitud solicitud = new Solicitud();
         solicitud.setNumeroDocumento("12345678");
@@ -302,7 +299,7 @@ class CrearSolicitudUseCaseTest {
         return guardada;
     }
 
-    // HELPER METHOD PARA CONFIGURAR TODOS LOS MOCKS NECESARIOS
+    // HELPER METHOD
     private void setupMocksCompletos() {
         when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
                 .thenReturn(Mono.just(false));

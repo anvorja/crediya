@@ -10,16 +10,17 @@ import com.crediya.solicitudes.model.solicitud.gateways.NotificationGateway;
 import com.crediya.solicitudes.model.solicitud.gateways.SolicitudRepository;
 import com.crediya.solicitudes.model.solicitud.gateways.ValidacionExternaGateway;
 import com.crediya.solicitudes.usecase.crearsolicitud.CrearSolicitudUseCase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -29,6 +30,9 @@ import static org.mockito.Mockito.*;
  * Tests de integración para verificar el cumplimiento completo
  * de los criterios de aceptación de la Historia de Usuario:
  * "Registrar una solicitud de préstamo"
+ *
+ * NOTA: Este test NO cambia porque usa el flujo reactivo completo
+ * que maneja automáticamente los errores según su clasificación.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Integración - Registrar Solicitud de Préstamo")
@@ -61,18 +65,32 @@ class RegistrarSolicitudIntegrationTest {
             Solicitud solicitud = crearSolicitudCompletaValida();
             Solicitud solicitudGuardada = crearSolicitudGuardada();
 
-            // Configurar mocks para flujo exitoso
+            // Configurar mocks para flujo exitoso - MODO REACTIVO
             when(solicitudRepository.existeSolicitudActivaPorDocumento("12345678"))
-                    .thenReturn(false);
-            when(validacionExternaGateway.validarDocumento(anyString()))
-                    .thenReturn(Optional.empty());
-            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
-                    .thenReturn(Optional.empty());
-            when(solicitudRepository.guardar(any(Solicitud.class)))
-                    .thenReturn(solicitudGuardada);
+                    .thenReturn(Mono.just(false));
 
-            // When - Cliente envía la solicitud
-            Solicitud resultado = useCase.ejecutar(solicitud);
+            // Mock exitoso para validaciones externas
+            when(validacionExternaGateway.validarDocumento(anyString()))
+                    .thenReturn(Mono.just(new com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionDocumento(true, "Juan", "Pérez")));
+
+            when(validacionExternaGateway.consultarHistorialCrediticio(anyString()))
+                    .thenReturn(Mono.just(new com.crediya.solicitudes.model.solicitud.valueobjects.HistorialCrediticio(false, 650)));
+
+            when(validacionExternaGateway.validarInformacionFinanciera(anyString(), any()))
+                    .thenReturn(Mono.just(new com.crediya.solicitudes.model.solicitud.valueobjects.ValidacionFinanciera(
+                            true, new BigDecimal("3000000"), "DIAN", "Validación exitosa")));
+
+            when(solicitudRepository.guardar(any(Solicitud.class)))
+                    .thenReturn(Mono.just(solicitudGuardada));
+
+            when(notificationGateway.notificarSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+
+            when(eventPublisherGateway.publicarEventoSolicitudCreada(any()))
+                    .thenReturn(Mono.empty());
+
+            // When - Cliente envía la solicitud (MODO REACTIVO)
+            Solicitud resultado = useCase.ejecutar(solicitud).block();
 
             // Then - Verificar TODOS los criterios de aceptación
 
@@ -108,8 +126,12 @@ class RegistrarSolicitudIntegrationTest {
             Solicitud solicitud = crearSolicitudCompletaValida();
             solicitud.setTipoCredito("TIPO_NO_EXISTENTE"); // CA-3: Tipo no válido
 
+            // AGREGAR ESTA LÍNEA:
+            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
+                    .thenReturn(Mono.just(false));
+
             // When & Then - CA-3: Sistema debe validar tipos existentes
-            assertThatThrownBy(() -> useCase.ejecutar(solicitud))
+            assertThatThrownBy(() -> useCase.ejecutar(solicitud).block())
                     .isInstanceOf(DatosSolicitudInvalidosException.class)
                     .hasMessageContaining("Tipo de crédito no válido");
 
@@ -129,10 +151,11 @@ class RegistrarSolicitudIntegrationTest {
 
             // Cliente ya tiene una solicitud activa
             when(solicitudRepository.existeSolicitudActivaPorDocumento("12345678"))
-                    .thenReturn(true);
+                    .thenReturn(Mono.just(true));
 
             // When & Then - No debe permitir duplicados
-            assertThatThrownBy(() -> useCase.ejecutar(solicitud))
+            // NOTA: Este test NO cambia porque la validación ocurre ANTES de las validaciones externas
+            assertThatThrownBy(() -> useCase.ejecutar(solicitud).block())
                     .isInstanceOf(SolicitudDuplicadaException.class)
                     .hasMessageContaining("Ya existe una solicitud activa para el documento: 12345678");
 
@@ -145,6 +168,13 @@ class RegistrarSolicitudIntegrationTest {
     @DisplayName("Validaciones Técnicas Específicas")
     class ValidacionesTecnicas {
 
+        @BeforeEach
+        void setUpValidacionesTecnicas() {
+            // Mock básico para que el flujo llegue a las validaciones
+            when(solicitudRepository.existeSolicitudActivaPorDocumento(anyString()))
+                    .thenReturn(Mono.just(false));
+        }
+
         @Test
         @DisplayName("Debe validar todos los campos obligatorios del cliente")
         void debeValidarCamposObligatoriosCliente() {
@@ -155,14 +185,15 @@ class RegistrarSolicitudIntegrationTest {
 
             // Test para cada campo obligatorio
             String[] camposObligatorios = {
-                    "numeroDocumento", "nombres", "apellidos", "email", "telefono"
+                    "numeroDocumento", "nombres", "apellidos", "email", "teléfono"
             };
 
             for (String campo : camposObligatorios) {
                 Solicitud solicitudInvalida = crearSolicitudConCampoInvalido(campo);
 
                 // When & Then
-                assertThatThrownBy(() -> useCase.ejecutar(solicitudInvalida))
+                // NOTA: Estos tests NO cambian porque las validaciones básicas ocurren ANTES
+                assertThatThrownBy(() -> useCase.ejecutar(solicitudInvalida).block())
                         .isInstanceOf(DatosSolicitudInvalidosException.class)
                         .hasMessageContaining(campo.toLowerCase().contains("numero") ? "documento" : campo.toLowerCase());
             }
@@ -185,11 +216,12 @@ class RegistrarSolicitudIntegrationTest {
             montoMuyAlto.setMontoSolicitado(new BigDecimal("60000000")); // Mayor a 50,000,000
 
             // When & Then
-            assertThatThrownBy(() -> useCase.ejecutar(montoMuyBajo))
+            // NOTA: Estos tests NO cambian porque las validaciones de monto ocurren ANTES
+            assertThatThrownBy(() -> useCase.ejecutar(montoMuyBajo).block())
                     .isInstanceOf(DatosSolicitudInvalidosException.class)
                     .hasMessageContaining("mínimo");
 
-            assertThatThrownBy(() -> useCase.ejecutar(montoMuyAlto))
+            assertThatThrownBy(() -> useCase.ejecutar(montoMuyAlto).block())
                     .isInstanceOf(DatosSolicitudInvalidosException.class)
                     .hasMessageContaining("máximo");
         }
@@ -237,7 +269,7 @@ class RegistrarSolicitudIntegrationTest {
             case "nombres" -> solicitud.setNombres(null); // Null
             case "apellidos" -> solicitud.setApellidos("   "); // Solo espacios
             case "email" -> solicitud.setEmail("email-invalido"); // Formato inválido
-            case "telefono" -> solicitud.setTelefono("123"); // Muy corto
+            case "teléfono" -> solicitud.setTelefono("123"); // Muy corto
             default -> throw new IllegalArgumentException("Campo no válido: " + campo);
         }
 

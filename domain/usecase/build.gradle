@@ -4,7 +4,6 @@ description = 'Domain Use Cases - Lógica de negocio pura'
 dependencies {
     implementation project(':model')
 
-    // Usar Spring Boot Test que ya está alineado en el proyecto
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation('io.projectreactor:reactor-test') {
         exclude group: 'io.projectreactor.tools', module: 'blockhound'
@@ -21,4 +20,22 @@ test {
             '--add-opens', 'java.base/java.util=ALL-UNNAMED',
             '-XX:+AllowRedefinitionToAddDeleteMethods'
     ]
+}
+// Configuración específica de PIT para el módulo usecase
+pitest {
+    targetClasses = ['com.crediya.solicitudes.usecase.crearsolicitud.CrearSolicitudUseCase']
+    targetTests = ['com.crediya.solicitudes.usecase.crearsolicitud.CrearSolicitudUseCaseTest']
+
+    // Excluir integration tests
+    excludedTestClasses = [
+            '*IntegrationTest*',
+            '*Integration*',
+            'com.crediya.solicitudes.usecase.crearsolicitud.CrearSolicitudIntegrationTest'
+    ]
+
+    // Configuración específica para UseCase
+    mutationThreshold = 85
+    coverageThreshold = 95
+    threads = 2
+    verbose = true
 }

@@ -104,42 +104,95 @@ public class Solicitud {
     public BigDecimal getGastosMensuales() { return gastosMensuales; }
     public void setGastosMensuales(BigDecimal gastosMensuales) { this.gastosMensuales = gastosMensuales; }
 
-    // AÑADIDO - Getter y Setter para plazoMeses
     public Integer getPlazoMeses() { return plazoMeses; }
     public void setPlazoMeses(Integer plazoMeses) { this.plazoMeses = plazoMeses; }
 
-    // ============================================================
-    // MÉTODOS DE NEGOCIO (Domain Logic) - USANDO CONSTANTES DEL DOMINIO
-    // ============================================================
-
     public void validarDatos() {
-        if (numeroDocumento == null || numeroDocumento.trim().isEmpty()) {
-            throw new DatosSolicitudInvalidosException("El número de documento es obligatorio");
-        }
+        validarCamposObligatorios();
 
-        if (numeroDocumento.length() < BusinessConstants.Documento.LONGITUD_MINIMA ||
-                numeroDocumento.length() > BusinessConstants.Documento.LONGITUD_MAXIMA) {
-            throw new DatosSolicitudInvalidosException("El número de documento debe tener entre 6 y 15 caracteres");
-        }
-
-        if (nombres == null || nombres.trim().isEmpty()) {
-            throw new DatosSolicitudInvalidosException("Los nombres son obligatorios");
-        }
-
-        if (apellidos == null || apellidos.trim().isEmpty()) {
-            throw new DatosSolicitudInvalidosException("Los apellidos son obligatorios");
-        }
-
-        if (email == null || !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new DatosSolicitudInvalidosException("El email no tiene un formato válido");
-        }
-
-        if (telefono == null || !telefono.matches(BusinessConstants.Patterns.TELEFONO)) {
-            throw new DatosSolicitudInvalidosException("El teléfono debe tener entre 10 y 15 dígitos");
-        }
+        validarFormatoDocumento();
+        validarFormatoNombres();
+        validarFormatoApellidos();
+        validarFormatoEmail();
+        validarFormatoTelefono();
 
         validarMonto();
         validarTipoCredito();
+        validarPlazo();
+    }
+
+    private void validarCamposObligatorios() {
+        if (numeroDocumento == null || numeroDocumento.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("El número de documento es obligatorio");
+        }
+        if (nombres == null || nombres.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("Los nombres son obligatorios");
+        }
+        if (apellidos == null || apellidos.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("Los apellidos son obligatorios");
+        }
+        if (email == null || email.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("El email es obligatorio");
+        }
+        if (telefono == null || telefono.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("El teléfono es obligatorio");
+        }
+    }
+
+    private void validarFormatoDocumento() {
+        String doc = numeroDocumento.trim();
+
+        // Validar longitud (esto ya estaba en tu código original pero se perdió)
+        if (doc.length() < BusinessConstants.Documento.LONGITUD_MINIMA ||
+                doc.length() > BusinessConstants.Documento.LONGITUD_MAXIMA) {
+            throw new DatosSolicitudInvalidosException("El número de documento debe tener entre 6 y 15 caracteres");
+        }
+
+        // Validar que solo contenga números
+        if (!doc.matches("^[0-9]+$")) {
+            throw new DatosSolicitudInvalidosException("El número de documento solo debe contener números");
+        }
+    }
+
+    private void validarFormatoNombres() {
+        String nom = nombres.trim();
+
+        if (!nom.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")) {
+            throw new DatosSolicitudInvalidosException("Los nombres solo pueden contener letras y espacios");
+        }
+    }
+
+    private void validarFormatoApellidos() {
+        String apell = apellidos.trim();
+
+        if (!apell.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")) {
+            throw new DatosSolicitudInvalidosException("Los apellidos solo pueden contener letras y espacios");
+        }
+    }
+
+    private void validarFormatoEmail() {
+        String mail = email.trim();
+
+        if (!mail.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+            throw new DatosSolicitudInvalidosException("El formato del email no es válido");
+        }
+    }
+
+    private void validarFormatoTelefono() {
+        String tel = telefono.trim();
+
+        if (!tel.matches("^\\+?[0-9]{10,15}$")) {
+            throw new DatosSolicitudInvalidosException("El teléfono debe tener entre 10 y 15 dígitos");
+        }
+    }
+
+    private void validarPlazo() {
+        if (plazoMeses == null || plazoMeses < 6) {
+            throw new DatosSolicitudInvalidosException("El plazo mínimo es 6 meses");
+        }
+        if (plazoMeses > 72) {
+            throw new DatosSolicitudInvalidosException("El plazo máximo es 72 meses");
+        }
     }
 
     private void validarMonto() {
