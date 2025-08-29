@@ -7,9 +7,20 @@ import com.crediya.solicitudes.model.solicitud.exception.TransicionEstadoInvalid
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
+/**
+ * Entidad de dominio Solicitud
+ * Representa una solicitud de préstamo con todas sus validaciones de negocio
+ * Criterios de Aceptación HU2:
+ * - CA-1: Validar datos completos del cliente y préstamo
+ * - CA-2: Asignar estado inicial PENDIENTE_REVISION
+ * - CA-3: Validar tipos de préstamo permitidos
+ */
 public class Solicitud {
 
     private String id;
@@ -109,16 +120,15 @@ public class Solicitud {
 
     public void validarDatos() {
         validarCamposObligatorios();
-
         validarFormatoDocumento();
         validarFormatoNombres();
         validarFormatoApellidos();
         validarFormatoEmail();
         validarFormatoTelefono();
-
         validarMonto();
         validarTipoCredito();
         validarPlazo();
+        validarDatosFinancieros();
     }
 
     private void validarCamposObligatorios() {
@@ -137,89 +147,201 @@ public class Solicitud {
         if (telefono == null || telefono.trim().isEmpty()) {
             throw new DatosSolicitudInvalidosException("El teléfono es obligatorio");
         }
+        if (montoSolicitado == null) {
+            throw new DatosSolicitudInvalidosException("El monto solicitado es obligatorio");
+        }
+        if (tipoCredito == null || tipoCredito.trim().isEmpty()) {
+            throw new DatosSolicitudInvalidosException("El tipo de crédito es obligatorio");
+        }
+        if (plazoMeses == null) {
+            throw new DatosSolicitudInvalidosException("El plazo en meses es obligatorio");
+        }
     }
 
     private void validarFormatoDocumento() {
-        String doc = numeroDocumento.trim();
-
-        // Validar longitud (esto ya estaba en tu código original pero se perdió)
-        if (doc.length() < BusinessConstants.Documento.LONGITUD_MINIMA ||
-                doc.length() > BusinessConstants.Documento.LONGITUD_MAXIMA) {
-            throw new DatosSolicitudInvalidosException("El número de documento debe tener entre 6 y 15 caracteres");
-        }
-
-        // Validar que solo contenga números
-        if (!doc.matches("^[0-9]+$")) {
-            throw new DatosSolicitudInvalidosException("El número de documento solo debe contener números");
+        Pattern pattern = Pattern.compile(BusinessConstants.Patterns.DOCUMENTO);
+        if (!pattern.matcher(numeroDocumento.trim()).matches()) {
+            throw new DatosSolicitudInvalidosException("El formato del documento no es válido. Debe contener entre " +
+                    BusinessConstants.Documento.LONGITUD_MINIMA + " y " +
+                    BusinessConstants.Documento.LONGITUD_MAXIMA + " dígitos");
         }
     }
 
     private void validarFormatoNombres() {
-        String nom = nombres.trim();
+        if (nombres.trim().length() > BusinessConstants.Texto.NOMBRES_MAX_LENGTH) {
+            throw new DatosSolicitudInvalidosException("Los nombres no pueden exceder " +
+                    BusinessConstants.Texto.NOMBRES_MAX_LENGTH + " caracteres");
+        }
 
-        if (!nom.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")) {
+        Pattern pattern = Pattern.compile(BusinessConstants.Patterns.NOMBRES_APELLIDOS);
+        if (!pattern.matcher(nombres.trim()).matches()) {
             throw new DatosSolicitudInvalidosException("Los nombres solo pueden contener letras y espacios");
         }
     }
 
     private void validarFormatoApellidos() {
-        String apell = apellidos.trim();
+        if (apellidos.trim().length() > BusinessConstants.Texto.APELLIDOS_MAX_LENGTH) {
+            throw new DatosSolicitudInvalidosException("Los apellidos no pueden exceder " +
+                    BusinessConstants.Texto.APELLIDOS_MAX_LENGTH + " caracteres");
+        }
 
-        if (!apell.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$")) {
+        Pattern pattern = Pattern.compile(BusinessConstants.Patterns.NOMBRES_APELLIDOS);
+        if (!pattern.matcher(apellidos.trim()).matches()) {
             throw new DatosSolicitudInvalidosException("Los apellidos solo pueden contener letras y espacios");
         }
     }
 
     private void validarFormatoEmail() {
-        String mail = email.trim();
+        if (email.trim().length() > BusinessConstants.Texto.EMAIL_MAX_LENGTH) {
+            throw new DatosSolicitudInvalidosException("El email no puede exceder " +
+                    BusinessConstants.Texto.EMAIL_MAX_LENGTH + " caracteres");
+        }
 
-        if (!mail.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")) {
+        // Validación de formato de email más robusta
+        String emailRegex = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+        Pattern pattern = Pattern.compile(emailRegex);
+        if (!pattern.matcher(email.trim()).matches()) {
             throw new DatosSolicitudInvalidosException("El formato del email no es válido");
         }
     }
 
     private void validarFormatoTelefono() {
-        String tel = telefono.trim();
-
-        if (!tel.matches("^\\+?[0-9]{10,15}$")) {
-            throw new DatosSolicitudInvalidosException("El teléfono debe tener entre 10 y 15 dígitos");
-        }
-    }
-
-    private void validarPlazo() {
-        if (plazoMeses == null || plazoMeses < 6) {
-            throw new DatosSolicitudInvalidosException("El plazo mínimo es 6 meses");
-        }
-        if (plazoMeses > 72) {
-            throw new DatosSolicitudInvalidosException("El plazo máximo es 72 meses");
+        Pattern pattern = Pattern.compile(BusinessConstants.Patterns.TELEFONO);
+        if (!pattern.matcher(telefono.trim()).matches()) {
+            throw new DatosSolicitudInvalidosException("El formato del teléfono no es válido. " +
+                    "Debe tener entre " + BusinessConstants.Texto.TELEFONO_MIN_LENGTH +
+                    " y " + BusinessConstants.Texto.TELEFONO_MAX_LENGTH + " dígitos");
         }
     }
 
     private void validarMonto() {
-        if (montoSolicitado == null) {
-            throw new DatosSolicitudInvalidosException("El monto solicitado es obligatorio");
-        }
-
         if (montoSolicitado.compareTo(BusinessConstants.Financiero.MONTO_MINIMO) < 0) {
-            throw new DatosSolicitudInvalidosException("El monto mínimo a solicitar es $100,000");
+            throw new DatosSolicitudInvalidosException("El monto mínimo permitido es $" +
+                    BusinessConstants.Financiero.MONTO_MINIMO.toPlainString());
         }
 
         if (montoSolicitado.compareTo(BusinessConstants.Financiero.MONTO_MAXIMO) > 0) {
-            throw new DatosSolicitudInvalidosException("El monto máximo a solicitar es $50,000,000");
+            throw new DatosSolicitudInvalidosException("El monto máximo permitido es $" +
+                    BusinessConstants.Financiero.MONTO_MAXIMO.toPlainString());
         }
     }
 
+    /**
+     * CA-3: Validar tipos de préstamo permitidos
+     * Este método implementa el criterio de aceptación específico sobre tipos válidos
+     * DIFERENCIA entre tipo vacío (obligatorio) vs tipo inválido
+     */
+//    private void validarTipoCredito() {
+//        // Primero verificar si está vacío (diferente semántica)
+//        if (tipoCredito == null || tipoCredito.trim().isEmpty()) {
+//            throw new DatosSolicitudInvalidosException("El tipo de crédito es obligatorio");
+//        }
+//
+//        // Luego validar si el tipo existe en los permitidos
+//        if (!BusinessConstants.TipoCredito.TIPOS_VALIDOS.contains(tipoCredito)) {
+//            throw new DatosSolicitudInvalidosException("Tipo de crédito no válido: " + tipoCredito +
+//                    ". Tipos permitidos: " + String.join(", ", BusinessConstants.TipoCredito.TIPOS_VALIDOS));
+//        }
+//    }
     private void validarTipoCredito() {
-        if (tipoCredito == null || tipoCredito.trim().isEmpty()) {
+        if (tipoCredito == null) {
             throw new DatosSolicitudInvalidosException("El tipo de crédito es obligatorio");
         }
 
-        if (!BusinessConstants.TipoCredito.TIPOS_VALIDOS.contains(tipoCredito.toUpperCase())) {
-            throw new DatosSolicitudInvalidosException(
-                    "Tipo de crédito no válido: " + tipoCredito +
-                            ". Tipos permitidos: " + String.join(", ", BusinessConstants.TipoCredito.TIPOS_VALIDOS)
+        // String vacío O tipo no existe = "no válido" (no "obligatorio")
+        if (tipoCredito.trim().isEmpty() || !BusinessConstants.TipoCredito.TIPOS_VALIDOS.contains(tipoCredito)) {
+            throw new DatosSolicitudInvalidosException("Tipo de crédito no válido: " + tipoCredito +
+                    ". Tipos permitidos: " + String.join(", ", BusinessConstants.TipoCredito.TIPOS_VALIDOS));
+        }
+    }
+
+    private void validarPlazo() {
+        if (plazoMeses < BusinessConstants.Plazo.MINIMO_MESES) {
+            throw new DatosSolicitudInvalidosException("El plazo mínimo es de " +
+                    BusinessConstants.Plazo.MINIMO_MESES + " meses");
+        }
+
+        // Validación específica según tipo de crédito
+        int plazoMaximo = obtenerPlazoMaximoSegunTipo(tipoCredito);
+        if (plazoMeses > plazoMaximo) {
+            throw new DatosSolicitudInvalidosException("El plazo máximo para " + tipoCredito +
+                    " es de " + plazoMaximo + " meses");
+        }
+    }
+
+    /**
+     * Obtiene el plazo máximo según el tipo de crédito
+     * Reglas de negocio específicas por tipo
+     */
+    private int obtenerPlazoMaximoSegunTipo(String tipoCredito) {
+        return switch (tipoCredito) {
+            case "PERSONAL" -> 60;      // 5 años
+            case "VEHICULO" -> 96;      // 8 años
+            case "VIVIENDA" -> 360;     // 30 años
+            case "EDUCATIVO" -> 120;    // 10 años
+            default -> BusinessConstants.Plazo.MAXIMO_MESES; // 72 meses por defecto
+        };
+    }
+
+    private void validarDatosFinancieros() {
+        if (ingresosMensuales != null && ingresosMensuales.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DatosSolicitudInvalidosException("Los ingresos mensuales no pueden ser negativos");
+        }
+
+        if (gastosMensuales != null && gastosMensuales.compareTo(BigDecimal.ZERO) < 0) {
+            throw new DatosSolicitudInvalidosException("Los gastos mensuales no pueden ser negativos");
+        }
+    }
+
+    /**
+     * Lógica de transiciones de estado permitidas
+     */
+    private boolean puedeTransicionarA(EstadoSolicitud nuevoEstado) {
+        return switch (this.estado) {
+            case PENDIENTE_REVISION -> nuevoEstado == EstadoSolicitud.EN_REVISION ||
+                    nuevoEstado == EstadoSolicitud.RECHAZADA;
+            case EN_REVISION -> nuevoEstado == EstadoSolicitud.APROBADA ||
+                    nuevoEstado == EstadoSolicitud.RECHAZADA;
+            case APROBADA, RECHAZADA -> false; // Estados finales
+        };
+    }
+
+    /**
+     * Cambio de estado con validaciones
+     */
+    public void cambiarEstado(EstadoSolicitud nuevoEstado, String observaciones) {
+        if (!puedeTransicionarA(nuevoEstado)) {
+            throw new TransicionEstadoInvalidaException(
+                    String.format("No se puede cambiar de %s a %s", this.estado, nuevoEstado)
             );
         }
+        this.estado = nuevoEstado;
+        this.observaciones = observaciones; // Agregar esta línea
+        this.fechaActualizacion = LocalDateTime.now();
+    }
+
+    public void asignarEstadoInicial() {
+        this.estado = EstadoSolicitud.PENDIENTE_REVISION;
+        this.fechaCreacion = LocalDateTime.now();
+        this.fechaActualizacion = LocalDateTime.now();
+    }
+
+    public boolean puedeSerEditada() {
+        return estado == EstadoSolicitud.PENDIENTE_REVISION || estado == EstadoSolicitud.EN_REVISION;
+    }
+
+
+    public boolean estaEnEstadoFinal() {
+        return estado == EstadoSolicitud.APROBADA || estado == EstadoSolicitud.RECHAZADA;
+    }
+
+    public BigDecimal calcularCapacidadEndeudamiento() {
+        if (ingresosMensuales == null || gastosMensuales == null) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal ingresoDisponible = ingresosMensuales.subtract(gastosMensuales);
+        return ingresoDisponible.multiply(BusinessConstants.Financiero.PORCENTAJE_CAPACIDAD_ENDEUDAMIENTO);
     }
 
     public boolean evaluarCapacidadPago() {
@@ -247,68 +369,70 @@ public class Solicitud {
         return true;
     }
 
-    public void cambiarEstado(EstadoSolicitud nuevoEstado, String observaciones) {
-        if (!this.estado.puedeTransicionarA(nuevoEstado)) {
-            throw new TransicionEstadoInvalidaException(
-                    String.format("No se puede cambiar de %s a %s", this.estado, nuevoEstado)
-            );
-        }
-
-        this.estado = nuevoEstado;
-        this.observaciones = observaciones;
-        this.fechaActualizacion = LocalDateTime.now();
-    }
-
-    public void asignarEstadoInicial() {
-        this.estado = EstadoSolicitud.PENDIENTE_REVISION;
-        this.fechaCreacion = LocalDateTime.now();
-    }
-
-    public boolean puedeSerEditada() {
-        return estado == EstadoSolicitud.PENDIENTE_REVISION;
-    }
-
-    public boolean estaEnEstadoFinal() {
-        return estado == EstadoSolicitud.APROBADA || estado == EstadoSolicitud.RECHAZADA;
-    }
-
-    public BigDecimal calcularCapacidadEndeudamiento() {
-        if (ingresosMensuales == null || gastosMensuales == null) {
-            return BigDecimal.ZERO;
-        }
-
-        BigDecimal ingresoDisponible = ingresosMensuales.subtract(gastosMensuales);
-        return ingresoDisponible.multiply(BusinessConstants.Financiero.PORCENTAJE_CAPACIDAD_ENDEUDAMIENTO);
-    }
-
+    /**
+     * Método para pruebas - evalúa si tiene capacidad de pago suficiente
+     */
     public boolean tieneCapacidadPago() {
-        BigDecimal capacidad = calcularCapacidadEndeudamiento();
-        if (montoSolicitado == null) {
+        if (ingresosMensuales == null || gastosMensuales == null || montoSolicitado == null) {
             return false;
         }
-        // Verificar si puede pagar al menos 5% del monto solicitado mensualmente
-        BigDecimal pagoMinimo = montoSolicitado.multiply(new BigDecimal("0.05"));
-        return capacidad.compareTo(pagoMinimo) >= 0;
+
+        // REGLA 1: Los gastos no pueden superar el 70% de los ingresos
+        BigDecimal porcentajeGastos = gastosMensuales
+                .divide(ingresosMensuales, 4, java.math.RoundingMode.HALF_UP)
+                .multiply(new BigDecimal("100"));
+
+        if (porcentajeGastos.compareTo(BusinessConstants.Financiero.PORCENTAJE_GASTOS_MAXIMO) > 0) {
+            return false; // Automáticamente no tiene capacidad si gastos > 70%
+        }
+
+        // REGLA 2: Calcular capacidad de endeudamiento del ingreso disponible
+        BigDecimal ingresoDisponible = ingresosMensuales.subtract(gastosMensuales);
+
+        // Si los gastos son mayores o iguales a los ingresos, no tiene capacidad
+        if (ingresoDisponible.compareTo(BigDecimal.ZERO) <= 0) {
+            return false;
+        }
+
+        // La capacidad de endeudamiento es el 30% del ingreso disponible
+        BigDecimal capacidadEndeudamiento = ingresoDisponible.multiply(BusinessConstants.Financiero.FACTOR_ENDEUDAMIENTO);
+
+        // Calcular cuota mínima mensual estimada (5% del monto)
+        BigDecimal cuotaMinima = montoSolicitado.multiply(new BigDecimal("0.05"));
+
+        // Tiene capacidad si puede pagar al menos la cuota mínima
+        return capacidadEndeudamiento.compareTo(cuotaMinima) >= 0;
     }
 
     public String getNombreCompleto() {
-        return String.format("%s %s", nombres, apellidos);
+        return nombres + " " + apellidos;
     }
 
     public String generarResumen() {
-        DecimalFormat formatter = new DecimalFormat("#,###");
+        // Usar Locale.US para forzar comas como separadores de miles
+        DecimalFormat formatter = new DecimalFormat("#,###",
+                DecimalFormatSymbols.getInstance(Locale.US));
+
         return String.format("Solicitud %s - %s - %s - $%s - %s",
                 id, getNombreCompleto(), tipoCredito,
-                formatter.format(montoSolicitado), estado);
-    }
-
-    public boolean esNueva() {
-        return id == null || estado == EstadoSolicitud.PENDIENTE_REVISION;
+                formatter.format(montoSolicitado), estado.name());
     }
 
     @Override
     public String toString() {
         return String.format("Solicitud{id='%s', documento='%s', estado=%s, monto=%s}",
                 id, numeroDocumento, estado, montoSolicitado);
+    }
+
+    // ========================================
+    // MÉTODOS UTILITARIOS
+    // ========================================
+
+    public boolean esSolicitudActiva() {
+        return estado != EstadoSolicitud.RECHAZADA;
+    }
+
+    public boolean esSolicitudPendiente() {
+        return estado == EstadoSolicitud.PENDIENTE_REVISION;
     }
 }

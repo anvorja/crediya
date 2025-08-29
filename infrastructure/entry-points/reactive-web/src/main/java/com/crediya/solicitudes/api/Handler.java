@@ -29,7 +29,7 @@ public class Handler {
     private final SolicitudRestMapper mapper;
 
     /**
-     * POST /api/v1/solicitud
+     * POST /api/v1/solicitudw
      * HU2: Como cliente, quiero enviar mi solicitud de préstamo con la información necesaria
      * COMPLETAMENTE REACTIVO - aprovecha las ventajas de WebFlux
      */

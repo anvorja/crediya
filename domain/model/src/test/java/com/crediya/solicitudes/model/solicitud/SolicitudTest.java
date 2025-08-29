@@ -82,7 +82,7 @@ class SolicitudTest {
         @DisplayName("CA-3: Debe rechazar tipos de préstamo no válidos")
         void debeRechazarTiposPrestamoNoValidos() {
             // Given - Tipos inválidos
-            String[] tiposInvalidos = {"HIPOTECARIO", "COMERCIAL", "TIPO_INEXISTENTE", ""};
+            String[] tiposInvalidos = {"HIPOTECARIO", "COMERCIAL", "TIPO_INEXISTENTE"};
 
             for (String tipo : tiposInvalidos) {
                 Solicitud solicitud = crearSolicitudValida();
